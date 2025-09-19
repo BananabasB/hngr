@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
+const { execSync } = require("child_process");
+
+const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  env: {
+    NEXT_PUBLIC_COMMIT_HASH: commitHash,
+  },
 };
+
+
 
 export default nextConfig;
