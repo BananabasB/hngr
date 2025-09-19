@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+
 
 const ibmMono = IBM_Plex_Mono({
   variable: "--font-ibm-mono",
@@ -21,9 +24,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${ibmMono.variable} antialiased`}
+        className={`${ibmMono.className} antialiased`}
       >
-        {children}
+        <div className="h-screen w-screen flex bg-base">
+      <SidebarProvider><AppSidebar></AppSidebar>
+        <main className="flex-1 h-full overflow-y-auto">
+  {children}
+</main>
+</SidebarProvider>
+    </div>
       </body>
     </html>
   );
