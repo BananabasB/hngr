@@ -18,19 +18,8 @@ import {
   SquareTerminal,
 } from "lucide-react";
 
-import { NavMain } from "@/components/nav-main";
-import { NavProjects } from "@/components/nav-projects";
-import { NavUser } from "@/components/nav-user";
-import { TeamSwitcher } from "@/components/team-switcher";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar";
 
 const header = {
   items: [
@@ -38,7 +27,6 @@ const header = {
       title: "hngr",
       url: "/about",
       icon: BowArrow,
-      isActive: false,
       version: process.env.NEXT_PUBLIC_COMMIT_HASH,
     },
   ],
@@ -46,54 +34,22 @@ const header = {
 
 const data = {
   items: [
-    {
-      title: "districts",
-      url: "#",
-      icon: Building2,
-      isActive: true,
-    },
-    {
-      title: "timeline",
-      url: "#",
-      icon: Calendar,
-    },
-    {
-      title: "share",
-      url: "#",
-      icon: Share,
-    },
-    {
-      title: "settings",
-      url: "#",
-      icon: Settings2,
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
+    { title: "districts", url: "/", icon: Building2 },
+    { title: "timeline", url: "/timeline", icon: Calendar },
+    { title: "share", url: "/share", icon: Share },
+    { title: "settings", url: "/settings", icon: Settings2 },
   ],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="px-2 list-none">
         {header.items.map((item) => (
           <SidebarMenuItem key={item.title} className="w-full">
-            <SidebarMenuButton asChild isActive={item.isActive}>
+            <SidebarMenuButton asChild isActive={pathname === item.url}>
               <a
                 href={item.url}
                 className="flex items-center justify-between gap-2 w-full"
@@ -108,12 +64,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         ))}
       </SidebarHeader>
+
       <SidebarContent className="items-center list-none px-2">
         {data.items.map((item) => (
           <SidebarMenuItem key={item.title} className="w-full">
-            <SidebarMenuButton asChild isActive={item.isActive}>
+            <SidebarMenuButton asChild isActive={pathname === item.url}>
               <a href={item.url} className="flex items-center gap-2">
-                {item.icon && <item.icon />}
+                {item.icon && <item.icon className="h-5 w-5" />}
                 <span>{item.title}</span>
               </a>
             </SidebarMenuButton>
