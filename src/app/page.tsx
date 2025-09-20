@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { setupDatabase } from "@/lib/setup";
 import { Gupter } from "next/font/google";
-import { updateReferralName } from "@/lib/localStorage";
+import { load, updateReferralName } from "@/lib/localStorage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,7 +78,7 @@ export default function Home() {
           {db ? (
             <DistrictTributes tributes={db.tributes} />
           ) : (
-            <p>loading tributes…</p>
+            <p>loading...</p>
           )}
         </div>
       </div>
