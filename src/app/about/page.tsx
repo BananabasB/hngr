@@ -9,7 +9,7 @@ export default function About() {
       <div className="md:max-w-1/2 gap-3 flex flex-col text-center justify-center">
       <BowArrow className="flex mx-auto"></BowArrow>
       <h1 className={`${gupter.className} text-7xl font-stretch-75%`}>hngr</h1>
-      <p className="opacity-30">{`commit ${process.env.NEXT_PUBLIC_COMMIT_HASH}`}</p>
+      <p className="opacity-30">{`commit ${process.env.NEXT_PUBLIC_COMMIT_HASH}`} • <a href="/acknowledgements">acknowledgements</a></p>
       <p>have fun simulating survival games using your favourite characters!</p>
       <p><b>disclaimer:</b> this website was made for entertainment purposes only and any results produced are purely fiction.</p>
       </div>
