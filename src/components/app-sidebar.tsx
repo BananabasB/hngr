@@ -55,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="flex items-center justify-between gap-2 w-full"
               >
                 <div className="flex items-center gap-2">
-                  {item.icon && <item.icon className="h-5 w-5" />}
+                  {item.icon && <item.icon className="h-4 w-4" />}
                   <span>{item.title}</span>
                 </div>
                 <span className="opacity-20 text-xs">{item.version}</span>
@@ -70,7 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem key={item.title} className="w-full">
             <SidebarMenuButton asChild isActive={pathname === item.url}>
               <a href={item.url} className="flex items-center gap-2">
-                {item.icon && <item.icon className="h-5 w-5" />}
+                {item.icon && <item.icon className="h-4 w-4" />}
                 <span>{item.title}</span>
               </a>
             </SidebarMenuButton>

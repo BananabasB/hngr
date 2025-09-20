@@ -27,6 +27,7 @@ export default function About() {
           also, we wouldn't have this beautiful sidebar without <b>shadcn/ui</b>
           ! you have helped us so much with making our website look nice too.
         </p>
+        <p>and yes, we <i>suck</i> at logic coding - so we'd like to thank our friend <b>chatGPT</b> for being good at coding.</p>
       </div>
     </div>
   );
