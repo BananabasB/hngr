@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import DistrictTributes from "@/components/district-tributes";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
@@ -43,27 +44,42 @@ export default function Home() {
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <div className="bg-gradient-to-b from-stone-100 via-stone-100 text-center flex justify-center content-center items-center to-stone-200 border-b-2 border-b-stone-300 min-h-40 w-full">
+      <div className="bg-gradient-to-b from-stone-100 via-stone-100 text-center justify-center content-center items-center to-stone-200 border-b-2 border-b-stone-300 min-h-40 w-full">
         <h1 className={`${gupter.className} text-7xl`}>districts</h1>
       </div>
-      <div className="text-center flex justify-center gap-2">
-        <p>people that participate are called: </p>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex cursor-pointer flex-row gap-2">
-            {db ? db.tributeReferralName.plural : "loading..."}
-            <ChevronDown className="w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuRadioGroup value={referralKey} onValueChange={handleChange}>
-              <DropdownMenuRadioItem value="tributes">tributes</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="volunteers">volunteers</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="nominees">nominees</DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="text-center flex flex-col p-3 justify-center gap-2">
+        <div className="flex w-full  items-center content-center justify-center gap-2">
+          <p>people that participate are called: </p>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex cursor-pointer flex-row gap-2">
+              {db ? db.tributeReferralName.plural : "loading..."}
+              <ChevronDown className="w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuRadioGroup
+                value={referralKey}
+                onValueChange={handleChange}
+              >
+                <DropdownMenuRadioItem value="tributes">
+                  tributes
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="volunteers">
+                  volunteers
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="nominees">
+                  nominees
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
         <br />
         <div>
-          
+          {db ? (
+            <DistrictTributes tributes={db.tributes} />
+          ) : (
+            <p>loading tributes…</p>
+          )}
         </div>
       </div>
     </div>
