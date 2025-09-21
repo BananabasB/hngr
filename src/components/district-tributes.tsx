@@ -15,6 +15,7 @@ import { load } from "@/lib/localStorage";
 import { HngrDB } from "@/lib/setup";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { PencilLine } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 type Tribute = {
@@ -54,8 +55,25 @@ export function DistrictTributes({ tributes }: Props) {
                 <span>{t.name || "no name"}</span>
                 <span className="text-gray-500">
                   (
-                  {Object.values(t.pronouns).filter(Boolean).join("/") ||
-                    "no pronouns"}
+                  {(() => {
+                    // If t.pronouns is not present, fallback
+                    if (!t.pronouns) return "no pronouns";
+                    // If it's an array
+                    if (Array.isArray(t.pronouns)) {
+                      const joined = t.pronouns.filter(Boolean).join("/");
+                      return joined || "no pronouns";
+                    }
+                    // If it's an object, join subject/object/determiner/pronoun
+                    if (typeof t.pronouns === "object" && t.pronouns !== null) {
+                      const keys = ["subject", "object", "determiner", "pronoun"];
+                      const pronounsObj = t.pronouns as Record<string, string>;
+                      const values = keys.map((k) => pronounsObj[k]).filter(Boolean);
+                      const joined = values.join("/");
+                      return joined || "no pronouns";
+                    }
+                    // Fallback
+                    return "no pronouns";
+                  })()}
                   )
                 </span>
                 <EditTribute id={t.id.toString()} />
@@ -69,96 +87,119 @@ export function DistrictTributes({ tributes }: Props) {
 }
 
 export function EditTribute({ id }: { id: string }) {
-  const [image, setImage] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [pronouns, setPronouns] = React.useState({
-    subject: "",
-    object: "",
-    determiner: "",
-    pronoun: "",
-  });
-
   const db = load<HngrDB>("hngr-db");
   const singular = db?.tributeReferralName.singular ?? "tribute";
 
-  function handleSave() {
-    if (!db) return;
-    // find tribute by id
+  // Find the tribute object from all districts
+  let tribute: any = null;
+  if (db && db.tributes) {
     for (const district of Object.values(db.tributes)) {
-      const tribute = (district as any[]).find((t) => t.id.toString() === id);
-      if (tribute) {
-        tribute.name = name;
-        tribute.image = image;
-        tribute.pronouns = pronouns;
+      const found = (district as any[]).find((t) => t.id.toString() === id);
+      if (found) {
+        tribute = found;
         break;
       }
     }
+  }
+
+  // Extract initial state values from the tribute, with fallbacks
+  const initialName = tribute?.name ?? "";
+  const initialImage = tribute?.image ?? "";
+  // Map pronouns array/object to {subject, object, determiner, pronoun}
+  let initialPronouns = { subject: "", object: "", determiner: "", pronoun: "" };
+  if (tribute?.pronouns) {
+    if (Array.isArray(tribute.pronouns)) {
+      // If it's an array, map by index
+      initialPronouns = {
+        subject: tribute.pronouns[0] ?? "",
+        object: tribute.pronouns[1] ?? "",
+        determiner: tribute.pronouns[2] ?? "",
+        pronoun: tribute.pronouns[3] ?? "",
+      };
+    } else if (
+      typeof tribute.pronouns === "object" &&
+      tribute.pronouns !== null
+    ) {
+      // If it's an object, use keys
+      initialPronouns = {
+        subject: tribute.pronouns.subject ?? "",
+        object: tribute.pronouns.object ?? "",
+        determiner: tribute.pronouns.determiner ?? "",
+        pronoun: tribute.pronouns.pronoun ?? "",
+      };
+    }
+  }
+
+  // local draft state, prefilled with tribute values
+  const [draftImage, setDraftImage] = React.useState(initialImage);
+  const [draftName, setDraftName] = React.useState(initialName);
+  const [draftPronouns, setDraftPronouns] = React.useState(initialPronouns);
+
+  function handleSave() {
+    if (!db) return;
+
+    for (const district of Object.values(db.tributes)) {
+      const t = (district as any[]).find((t) => t.id.toString() === id);
+      if (t) {
+        t.name = draftName;
+        t.image = draftImage;
+        t.pronouns = draftPronouns;
+        break;
+      }
+    }
+
     localStorage.setItem("hngr-db", JSON.stringify(db));
+    window.location.reload();
   }
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>edit</Button>
+        <Button><PencilLine></PencilLine>edit</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>{`change ${singular} data`}</DialogTitle>
         <div className="gap-3 flex flex-col">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="imageURLInput" className="opacity-40">
-              image
-            </Label>
-            <Input
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              id="imageURLInput"
-              placeholder="enter an image URL..."
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="nameInput" className="opacity-40">
-              name
-            </Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              id="nameInput"
-              placeholder="enter a name..."
-            />
-          </div>
+          <Input
+            value={draftImage}
+            onChange={(e) => setDraftImage(e.target.value)}
+            placeholder="enter an image URL..."
+          />
 
-          <div className="flex flex-col gap-2">
-            <Label className="opacity-40">pronouns</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="pronounSubject" className="text-xs opacity-70">
-                  subject
-                </Label>
-                <Input id="pronounSubject" placeholder="they" />
-              </div>
-              <div>
-                <Label htmlFor="pronounObject" className="text-xs opacity-70">
-                  object
-                </Label>
-                <Input id="pronounObject" placeholder="them" />
-              </div>
-              <div>
-                <Label
-                  htmlFor="pronounDeterminer"
-                  className="text-xs opacity-70"
-                >
-                  possessive determiner
-                </Label>
-                <Input id="pronounDeterminer" placeholder="their" />
-              </div>
-              <div>
-                <Label htmlFor="pronounPronoun" className="text-xs opacity-70">
-                  possessive pronoun
-                </Label>
-                <Input id="pronounPronoun" placeholder="theirs" />
-              </div>
-            </div>
-          </div>
+          <Input
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder="enter a name..."
+          />
+
+          <Input
+            value={draftPronouns.subject}
+            onChange={(e) =>
+              setDraftPronouns((p) => ({ ...p, subject: e.target.value }))
+            }
+            placeholder="they"
+          />
+          <Input
+            value={draftPronouns.object}
+            onChange={(e) =>
+              setDraftPronouns((p) => ({ ...p, object: e.target.value }))
+            }
+            placeholder="them"
+          />
+          <Input
+            value={draftPronouns.determiner}
+            onChange={(e) =>
+              setDraftPronouns((p) => ({ ...p, determiner: e.target.value }))
+            }
+            placeholder="their"
+          />
+          <Input
+            value={draftPronouns.pronoun}
+            onChange={(e) =>
+              setDraftPronouns((p) => ({ ...p, pronoun: e.target.value }))
+            }
+            placeholder="theirs"
+          />
         </div>
         <DialogFooter>
           <DialogClose asChild>
