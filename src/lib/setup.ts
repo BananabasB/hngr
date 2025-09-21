@@ -4,9 +4,16 @@ import { v4 as uuidv4 } from 'uuid'
 
 export type Tribute = {
   name: string;
-  pronouns: string[];
+  pronouns: Pronouns;
   image: string | null;
   id: string;
+};
+
+export type Pronouns = {
+  subject: string; // he / she / they
+  object: string; // him / her / them
+  determiner: string; // his / her / their
+  pronoun: string; // his / hers / theirs
 };
 
 export type HngrDB = {
@@ -31,135 +38,134 @@ export function setupDatabase() {
     tributes: {
       1: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },
-        
       ],
       2: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       3: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       4: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       5: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       6: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       7: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       8: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       9: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       10: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       11: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },],
       12: [{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },{
         name: "",
-        pronouns: [],
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         id: uuidv4(),
       },]

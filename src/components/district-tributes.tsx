@@ -2,7 +2,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Gupter } from "next/font/google";
 import React from "react";
 import { Button } from "./ui/button";
-
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { load } from "@/lib/localStorage";
+import { HngrDB } from "@/lib/setup";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 type Tribute = {
@@ -16,7 +28,7 @@ type Props = {
   tributes: Record<number, Tribute[]>; // { 1: [...], 2: [...], ... }
 };
 
-export default function DistrictTributes({ tributes }: Props) {
+export function DistrictTributes({ tributes }: Props) {
   return (
     <div className="flex flex-col gap-6">
       {Object.entries(tributes).map(([district, people]) => (
@@ -40,15 +52,72 @@ export default function DistrictTributes({ tributes }: Props) {
                   </AvatarFallback>
                 </Avatar>
                 <span>{t.name || "no name"}</span>
-                <span className="text-gray-500">({t.pronouns.join("/") || "no pronouns"})</span>
-                <Button asChild>
-                  <a href={`/edit/${t.id}`}>edit</a>
-                </Button>
+                <span className="text-gray-500">
+                  ({t.pronouns.join("/") || "no pronouns"})
+                </span>
+                <EditTribute id={t.id.toString()} />
               </li>
             ))}
           </ul>
         </div>
       ))}
     </div>
+  );
+}
+
+export function EditTribute({ id }: { id: string }) {
+  const [image, setImage] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [pronouns, setPronouns] = React.useState({
+    subject: "",
+    object: "",
+    determiner: "",
+    pronoun: "",
+  });
+
+  const db = load<HngrDB>("hngr-db");
+  const singular = db?.tributeReferralName.singular ?? "tribute";
+
+  function handleSave() {
+    if (!db) return;
+    // find tribute by id
+    for (const district of Object.values(db.tributes)) {
+      const tribute = (district as any[]).find(t => t.id.toString() === id);
+      if (tribute) {
+        tribute.name = name;
+        tribute.image = image;
+        tribute.pronouns = pronouns;
+        break;
+      }
+    }
+    localStorage.setItem("hngr-db", JSON.stringify(db));
+  }
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button>edit</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>{`change ${singular} data`}</DialogTitle>
+        <div className="gap-3 flex flex-col">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="imageURLInput" className="opacity-40">image</Label>
+            <Input value={image} onChange={e => setImage(e.target.value)} id="imageURLInput" placeholder="enter an image URL..." />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="nameInput" className="opacity-40">name</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} id="nameInput" placeholder="enter a name..." />
+          </div>
+
+          {/* pronouns section (see code above for 4 inputs) */}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button onClick={handleSave}>done</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

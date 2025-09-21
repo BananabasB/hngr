@@ -18,22 +18,26 @@ export function remove(key: string) {
   }
 }
 
-export function updateReferralName(db: any, setDb: any, key: string) {
-  const referralOptions: Record<string, { singular: string; plural: string }> = {
-    tributes: { singular: "tribute", plural: "tributes" },
-    volunteers: { singular: "volunteer", plural: "volunteers" },
-    nominees: { singular: "nominee", plural: "nominees" },
-  };
+// lib/localStorage.ts
+export function updateReferralName(
+  db: any,
+  value: "tributes" | "volunteers" | "nominees"
+) {
+  if (!db) return db;
 
-  const option = referralOptions[key];
-  const newDb = {
+  const updated = {
     ...db,
     tributeReferralName: {
-      singular: option.singular,
-      plural: option.plural,
+      singular:
+        value === "tributes"
+          ? "tribute"
+          : value === "volunteers"
+          ? "volunteer"
+          : "nominee",
+      plural: value,
     },
   };
 
-  setDb(newDb);
-  localStorage.setItem("hngrDb", JSON.stringify(newDb));
+  localStorage.setItem("hngr-db", JSON.stringify(updated));
+  return updated;
 }

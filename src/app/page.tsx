@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
-import DistrictTributes from "@/components/district-tributes";
+import { DistrictTributes } from "@/components/district-tributes";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
@@ -37,10 +37,11 @@ export default function Home() {
     console.log("hngr db", database);
   }, []);
 
-  const handleChange = (value: string) => {
-    setReferralKey(value);
-    updateReferralName(db, setDb, value);
-  };
+  const handleChange = (value: "tributes" | "volunteers" | "nominees") => {
+  setReferralKey(value);
+  const updated = updateReferralName(db, value);
+  setDb(updated);
+};
 
   return (
     <div className="w-full flex flex-col gap-3">
