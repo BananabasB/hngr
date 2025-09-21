@@ -37,10 +37,16 @@ export default function Home() {
     console.log("hngr db", database);
   }, []);
 
-  const handleChange = (value: "tributes" | "volunteers" | "nominees") => {
-  setReferralKey(value);
-  const updated = updateReferralName(db, value);
-  setDb(updated);
+const handleChange = (value: string) => {
+  if (
+    value === "tributes" ||
+    value === "volunteers" ||
+    value === "nominees"
+  ) {
+    setReferralKey(value);
+    const updated = updateReferralName(db, value);
+    setDb(updated);
+  }
 };
 
   return (

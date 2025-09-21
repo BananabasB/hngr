@@ -53,7 +53,10 @@ export function DistrictTributes({ tributes }: Props) {
                 </Avatar>
                 <span>{t.name || "no name"}</span>
                 <span className="text-gray-500">
-                  ({t.pronouns.join("/") || "no pronouns"})
+                  (
+                  {Object.values(t.pronouns).filter(Boolean).join("/") ||
+                    "no pronouns"}
+                  )
                 </span>
                 <EditTribute id={t.id.toString()} />
               </li>
@@ -82,7 +85,7 @@ export function EditTribute({ id }: { id: string }) {
     if (!db) return;
     // find tribute by id
     for (const district of Object.values(db.tributes)) {
-      const tribute = (district as any[]).find(t => t.id.toString() === id);
+      const tribute = (district as any[]).find((t) => t.id.toString() === id);
       if (tribute) {
         tribute.name = name;
         tribute.image = image;
@@ -102,35 +105,60 @@ export function EditTribute({ id }: { id: string }) {
         <DialogTitle>{`change ${singular} data`}</DialogTitle>
         <div className="gap-3 flex flex-col">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="imageURLInput" className="opacity-40">image</Label>
-            <Input value={image} onChange={e => setImage(e.target.value)} id="imageURLInput" placeholder="enter an image URL..." />
+            <Label htmlFor="imageURLInput" className="opacity-40">
+              image
+            </Label>
+            <Input
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+              id="imageURLInput"
+              placeholder="enter an image URL..."
+            />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="nameInput" className="opacity-40">name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} id="nameInput" placeholder="enter a name..." />
+            <Label htmlFor="nameInput" className="opacity-40">
+              name
+            </Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              id="nameInput"
+              placeholder="enter a name..."
+            />
           </div>
 
           <div className="flex flex-col gap-2">
-  <Label className="opacity-40">pronouns</Label>
-  <div className="grid grid-cols-2 gap-2">
-    <div>
-      <Label htmlFor="pronounSubject" className="text-xs opacity-70">subject (“he is cool”)</Label>
-      <Input id="pronounSubject" placeholder="he" />
-    </div>
-    <div>
-      <Label htmlFor="pronounObject" className="text-xs opacity-70">object (“i like him”)</Label>
-      <Input id="pronounObject" placeholder="him" />
-    </div>
-    <div>
-      <Label htmlFor="pronounDeterminer" className="text-xs opacity-70">possessive determiner (“i want his computer”)</Label>
-      <Input id="pronounDeterminer" placeholder="his" />
-    </div>
-    <div>
-      <Label htmlFor="pronounPronoun" className="text-xs opacity-70">possessive pronoun (“that computer is his”)</Label>
-      <Input id="pronounPronoun" placeholder="his" />
-    </div>
-  </div>
-</div>
+            <Label className="opacity-40">pronouns</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="pronounSubject" className="text-xs opacity-70">
+                  subject
+                </Label>
+                <Input id="pronounSubject" placeholder="they" />
+              </div>
+              <div>
+                <Label htmlFor="pronounObject" className="text-xs opacity-70">
+                  object
+                </Label>
+                <Input id="pronounObject" placeholder="them" />
+              </div>
+              <div>
+                <Label
+                  htmlFor="pronounDeterminer"
+                  className="text-xs opacity-70"
+                >
+                  possessive determiner
+                </Label>
+                <Input id="pronounDeterminer" placeholder="their" />
+              </div>
+              <div>
+                <Label htmlFor="pronounPronoun" className="text-xs opacity-70">
+                  possessive pronoun
+                </Label>
+                <Input id="pronounPronoun" placeholder="theirs" />
+              </div>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>
