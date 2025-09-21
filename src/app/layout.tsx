@@ -38,7 +38,7 @@ export default async function RootLayout({
         <div className="relative h-screen w-screen flex bg-base">
           <SidebarProvider defaultOpen={defaultOpen}>
             <SidebarPersistence />
-            <div className="absolute top-0 left-0 w-full h-10 p-2 bg-gradient-to-t from-transparent to-white z-50 md:hidden">
+            <div className="absolute top-0 left-0 w-full h-10 p-2 bg-gradient-to-t from-transparent to-base z-50 md:hidden">
               <SidebarTrigger/>
             </div>
             <AppSidebar />
