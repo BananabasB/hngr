@@ -110,7 +110,27 @@ export function EditTribute({ id }: { id: string }) {
             <Input value={name} onChange={e => setName(e.target.value)} id="nameInput" placeholder="enter a name..." />
           </div>
 
-          {/* pronouns section (see code above for 4 inputs) */}
+          <div className="flex flex-col gap-2">
+  <Label className="opacity-40">pronouns</Label>
+  <div className="grid grid-cols-2 gap-2">
+    <div>
+      <Label htmlFor="pronounSubject" className="text-xs opacity-70">subject (“he is cool”)</Label>
+      <Input id="pronounSubject" placeholder="he" />
+    </div>
+    <div>
+      <Label htmlFor="pronounObject" className="text-xs opacity-70">object (“i like him”)</Label>
+      <Input id="pronounObject" placeholder="him" />
+    </div>
+    <div>
+      <Label htmlFor="pronounDeterminer" className="text-xs opacity-70">possessive determiner (“i want his computer”)</Label>
+      <Input id="pronounDeterminer" placeholder="his" />
+    </div>
+    <div>
+      <Label htmlFor="pronounPronoun" className="text-xs opacity-70">possessive pronoun (“that computer is his”)</Label>
+      <Input id="pronounPronoun" placeholder="his" />
+    </div>
+  </div>
+</div>
         </div>
         <DialogFooter>
           <DialogClose asChild>
