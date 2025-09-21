@@ -5,6 +5,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import * as React from "react"
 import { useTheme } from "next-themes"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Trash } from "lucide-react";
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme()
@@ -33,7 +35,17 @@ export default function SettingsPage() {
           </li>
           <li className="flex content-center pt-4 items-center justify-between p-2">
             <span>your data</span>
-              <Button onClick={() => localStorage.removeItem("hngr-db")} variant="destructive" className="cursor-pointer" size="sm">erase</Button>
+              <Dialog>
+                <DialogTrigger asChild><Button variant="destructive" className="cursor-pointer">erase</Button></DialogTrigger>
+                <DialogContent className="flex flex-col content-center text-center justify-center items-center">
+                    <DialogHeader className="flex flex-col text-center content-center justify-center items-center">
+                        <DialogTitle>are you sure?</DialogTitle>
+                        <DialogDescription className="text-center">this action cannot be undone. once you delete your data, it's gone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="destructive" className="cursor-pointer"><Trash></Trash>i'm sure, erase</Button></DialogFooter>
+                </DialogContent>
+              </Dialog>
           </li>
         </ul>
       </div>
