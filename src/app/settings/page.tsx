@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import * as React from "react"
 import { useTheme } from "next-themes"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Trash } from "lucide-react";
 
 export default function SettingsPage() {
@@ -43,7 +43,10 @@ export default function SettingsPage() {
                         <DialogDescription className="text-center">this action cannot be undone. once you delete your data, it's gone.</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="destructive" className="cursor-pointer"><Trash></Trash>i'm sure, erase</Button></DialogFooter>
+                      <DialogClose asChild>
+                        <Button type="submit" variant="destructive" onClick={() => localStorage.removeItem("hngr-db")} className="cursor-pointer"><Trash></Trash>i'm sure, erase</Button>
+                      </DialogClose>
+                        </DialogFooter>
                 </DialogContent>
               </Dialog>
           </li>
