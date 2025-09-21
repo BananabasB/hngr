@@ -7,7 +7,7 @@ export default function About() {
   return (
     <div className="items-center gap-3 content-center flex flex-col justify-center text-center h-full">
       <div className="md:max-w-2/3 gap-3 flex flex-col text-center justify-center">
-        <h1 className={`${gupter.className} text-7xl font-stretch-75%`}>
+        <h1 className={`${gupter.className} text-6xl text-center font-stretch-75%`}>
           acknowledgements
         </h1>
         <p>
