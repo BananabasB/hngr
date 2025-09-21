@@ -12,6 +12,7 @@ import {
   Frame,
   GalleryVerticalEnd,
   Map,
+  PanelLeft,
   PieChart,
   Settings2,
   Share,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { usePathname } from "next/navigation";
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenuButton, SidebarMenuItem, SidebarRail } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTrigger } from "@/components/ui/sidebar";
 
 const header = {
   items: [

@@ -26,18 +26,116 @@ export function setupDatabase() {
       plural: "tributes",
     },
     tributes: {
-      1: [],
-      2: [],
-      3: [],
-      4: [],
-      5: [],
-      6: [],
-      7: [],
-      8: [],
-      9: [],
-      10: [],
-      11: [],
-      12: []
+      1: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },
+        
+      ],
+      2: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      3: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      4: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      5: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      6: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      7: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      8: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      9: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      10: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      11: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },],
+      12: [{
+        name: "",
+        pronouns: [],
+        image: null
+      },{
+        name: "",
+        pronouns: [],
+        image: null
+      },]
     },
   };
 
