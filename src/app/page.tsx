@@ -44,7 +44,7 @@ export default function Home() {
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <div className="bg-gradient-to-b from-stone-100 via-stone-100 text-center justify-center content-center items-center to-stone-200 border-b-2 border-b-stone-300 min-h-40 w-full">
+      <div className="bg-gradient-to-b from-base-100 via-base-100 text-center justify-center content-center items-center to-sidebar-accent border-b-2 dark:border-b-stone-700 border-b-stone-400 min-h-40 w-full">
         <h1 className={`${gupter.className} text-7xl`}>districts</h1>
       </div>
       <div className="text-center flex flex-col p-3 justify-center gap-2">

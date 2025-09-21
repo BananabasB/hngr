@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { cookies } from "next/headers";
 import { SidebarPersistence } from "@/lib/sidebar-persistence";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const ibmMono = IBM_Plex_Mono({
   variable: "--font-ibm-mono",
@@ -26,15 +27,28 @@ export default async function RootLayout({
   const defaultOpen =
     cookieStore.get("sidebar-open")?.value === "true" ? true : false;
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${ibmMono.className} antialiased`}>
-        <div className="h-screen w-screen flex bg-base">
+        <ThemeProvider
+        attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+        <div className="relative h-screen w-screen flex bg-base">
           <SidebarProvider defaultOpen={defaultOpen}>
             <SidebarPersistence />
-            <AppSidebar></AppSidebar>
-            <main className="flex-1 h-full overflow-y-auto">{children}</main>
+            <div className="absolute top-0 left-0 w-full h-10 p-2 bg-gradient-to-t from-transparent to-white z-50 md:hidden">
+              <SidebarTrigger/>
+            </div>
+            <AppSidebar />
+            <main className="flex-1 h-screen overflow-y-auto">
+              {children}
+
+            </main>
           </SidebarProvider>
         </div>
+        </ThemeProvider>
       </body>
     </html>
   );
