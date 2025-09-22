@@ -14,7 +14,8 @@ export type Tribute = {
   id: string;
   district: number;
   relationships: Record<string, Relationship>; // keyed by other tribute IDs
-  health: Health
+  health: Health;
+  foodLvl: number
 };
 
 export type Health = {
@@ -36,6 +37,7 @@ export type EventTemplate = {
   text: string;
   roles: string[];
   effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;
+  conditions?: (db: HngrDB, tributes: Record<string, Tribute>) => boolean;
 };
 
 export type Event = {
@@ -77,6 +79,7 @@ export function setupDatabase() {
         pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
         health: { physical: 100, mental: 100},
+        foodLvl: 0,
         id,
         district,
         relationships: {},
