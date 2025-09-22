@@ -17,71 +17,71 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { PencilLine } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
-
-type Tribute = {
-  id: number;
-  name: string;
-  pronouns: string[];
-  image: string; // image URL
-};
+import { Tribute } from "@/lib/setup";
 
 type Props = {
-  tributes: Record<number, Tribute[]>; // { 1: [...], 2: [...], ... }
+  tributes: Record<string, Tribute>; // { id: Tribute, ... }
 };
 
 export function DistrictTributes({ tributes }: Props) {
+  // Get unique districts from tributes
+  const districts = Array.from(new Set(Object.values(tributes).map(t => t.district)));
+
   return (
     <div className="flex flex-col gap-6">
-      {Object.entries(tributes).map(([district, people]) => (
-        <div key={district} className="rounded p-4">
-          <h2 className={`text-3xl font-bold mb-2 ${gupter.className}`}>
-            district {district}
-          </h2>
-          <ul className="grid md:grid-cols-2 grid-rows-2 md:grid-rows-1 items-center gap-2">
-            {people.map((t) => (
-              <li
-                key={t.id}
-                className="flex flex-col items-center justify-center gap-2"
-              >
-                <Avatar className="w-32 h-32 rounded-md">
-                  <AvatarImage
-                    src={t.image}
-                    className="object-cover rounded-md w-full h-full"
-                  />
-                  <AvatarFallback className="w-full h-full flex items-center justify-center text-sm">
-                    no image
-                  </AvatarFallback>
-                </Avatar>
-                <span>{t.name || "no name"}</span>
-                <span className="text-gray-500">
-                  (
-                  {(() => {
-                    // If t.pronouns is not present, fallback
-                    if (!t.pronouns) return "no pronouns";
-                    // If it's an array
-                    if (Array.isArray(t.pronouns)) {
-                      const joined = t.pronouns.filter(Boolean).join("/");
-                      return joined || "no pronouns";
-                    }
-                    // If it's an object, join subject/object/determiner/pronoun
-                    if (typeof t.pronouns === "object" && t.pronouns !== null) {
-                      const keys = ["subject", "object", "determiner", "pronoun"];
-                      const pronounsObj = t.pronouns as Record<string, string>;
-                      const values = keys.map((k) => pronounsObj[k]).filter(Boolean);
-                      const joined = values.join("/");
-                      return joined || "no pronouns";
-                    }
-                    // Fallback
-                    return "no pronouns";
-                  })()}
-                  )
-                </span>
-                <EditTribute id={t.id.toString()} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {districts.map((district) => {
+        const people = Object.values(tributes).filter(t => t.district === district);
+        return (
+          <div key={district} className="rounded p-4">
+            <h2 className={`text-3xl font-bold mb-2 ${gupter.className}`}>
+              district {district}
+            </h2>
+            <ul className="grid md:grid-cols-2 grid-rows-2 md:grid-rows-1 items-center gap-2">
+              {people.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex flex-col items-center justify-center gap-2"
+                >
+                  <Avatar className="w-32 h-32 rounded-md">
+                    <AvatarImage
+                      src={t.image ?? undefined}
+                      className="object-cover rounded-md w-full h-full"
+                    />
+                    <AvatarFallback className="w-full h-full flex items-center justify-center text-sm">
+                      no image
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{t.name || "no name"}</span>
+                  <span className="text-gray-500">
+                    (
+                    {(() => {
+                      // If t.pronouns is not present, fallback
+                      if (!t.pronouns) return "no pronouns";
+                      // If it's an array
+                      if (Array.isArray(t.pronouns)) {
+                        const joined = t.pronouns.filter(Boolean).join("/");
+                        return joined || "no pronouns";
+                      }
+                      // If it's an object, join subject/object/determiner/pronoun
+                      if (typeof t.pronouns === "object" && t.pronouns !== null) {
+                        const keys = ["subject", "object", "determiner", "pronoun"];
+                        const pronounsObj = t.pronouns as Record<string, string>;
+                        const values = keys.map((k) => pronounsObj[k]).filter(Boolean);
+                        const joined = values.join("/");
+                        return joined || "no pronouns";
+                      }
+                      // Fallback
+                      return "no pronouns";
+                    })()}
+                    )
+                  </span>
+                  <EditTribute id={t.id} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -90,17 +90,8 @@ export function EditTribute({ id }: { id: string }) {
   const db = load<HngrDB>("hngr-db");
   const singular = db?.tributeReferralName.singular ?? "tribute";
 
-  // Find the tribute object from all districts
-  let tribute: any = null;
-  if (db && db.tributes) {
-    for (const district of Object.values(db.tributes)) {
-      const found = (district as any[]).find((t) => t.id.toString() === id);
-      if (found) {
-        tribute = found;
-        break;
-      }
-    }
-  }
+  // Find the tribute object directly by id
+  const tribute = db?.tributes[id];
 
   // Extract initial state values from the tribute, with fallbacks
   const initialName = tribute?.name ?? "";
@@ -138,14 +129,11 @@ export function EditTribute({ id }: { id: string }) {
   function handleSave() {
     if (!db) return;
 
-    for (const district of Object.values(db.tributes)) {
-      const t = (district as any[]).find((t) => t.id.toString() === id);
-      if (t) {
-        t.name = draftName;
-        t.image = draftImage;
-        t.pronouns = draftPronouns;
-        break;
-      }
+    const t = db.tributes[id];
+    if (t) {
+      t.name = draftName;
+      t.image = draftImage;
+      t.pronouns = draftPronouns;
     }
 
     localStorage.setItem("hngr-db", JSON.stringify(db));
@@ -205,7 +193,6 @@ export function EditTribute({ id }: { id: string }) {
               }}
             />
           </div>
-          {/* Also allow fallback to URL for power users */}
 
           <Input
             value={draftName}

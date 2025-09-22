@@ -2,11 +2,18 @@ import { randomUUID } from "crypto";
 import { save, load } from "./localStorage";
 import { v4 as uuidv4 } from 'uuid'
 
+export type Relationship = {
+  trust: number; // -100 = hates them, 0 = neutral, 100 = fully trusts
+  alliance: boolean; // currently allied?
+};
+
 export type Tribute = {
   name: string;
   pronouns: Pronouns;
   image: string | null;
   id: string;
+  district: number;
+  relationships: Record<string, Relationship>; // keyed by other tribute IDs
 };
 
 export type Pronouns = {
@@ -22,6 +29,7 @@ export type EventTemplate = {
   type: "kill" | "alliance" | "find" | "feast" | "generic";
   text: string;
   roles: string[];
+  effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;
 };
 
 export type Event = {
@@ -35,7 +43,7 @@ export type Event = {
 // database with tributes + events
 export type HngrDB = {
   tributeReferralName: { singular: string; plural: string };
-  tributes: Record<number, Tribute[]>; // district -> tributes
+  tributes: Record<string, Tribute>; // tribute ID -> Tribute
   events: Event[];
 };
 
@@ -51,142 +59,33 @@ export function setupDatabase() {
       plural: "tributes",
     },
     events: [],
-    tributes: {
-      1: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },
-      ],
-      2: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      3: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      4: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      5: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      6: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      7: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      8: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      9: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      10: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      11: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },],
-      12: [{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },{
-        name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
-        image: null,
-        id: uuidv4(),
-      },]
-    },
+    tributes: {},
   };
+
+  // Create tributes keyed by ID with district information
+  for (let district = 1; district <= 12; district++) {
+    for (let i = 0; i < 2; i++) {
+      const id = uuidv4();
+      defaultDB.tributes[id] = {
+        name: "",
+        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
+        image: null,
+        id,
+        district,
+        relationships: {},
+      };
+    }
+  }
+
+  // Populate relationships for each tribute with neutral trust and no alliance for every other tribute
+  const allTributes = Object.values(defaultDB.tributes);
+  for (const tribute of allTributes) {
+    for (const otherTribute of allTributes) {
+      if (tribute.id !== otherTribute.id) {
+        tribute.relationships[otherTribute.id] = { trust: 0, alliance: false };
+      }
+    }
+  }
 
   save("hngr-db", defaultDB);
   return defaultDB;
