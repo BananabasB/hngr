@@ -14,7 +14,13 @@ export type Tribute = {
   id: string;
   district: number;
   relationships: Record<string, Relationship>; // keyed by other tribute IDs
+  health: Health
 };
+
+export type Health = {
+  mental: number,
+  physical: number
+}
 
 export type Pronouns = {
   subject: string;   // he / she / they
@@ -26,7 +32,7 @@ export type Pronouns = {
 // reusable story skeleton
 export type EventTemplate = {
   id: string;
-  type: "kill" | "alliance" | "find" | "feast" | "generic";
+  type: "kill" | "kill2" | "alliance" | "find" | "feast" | "generic";
   text: string;
   roles: string[];
   effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;
@@ -70,6 +76,7 @@ export function setupDatabase() {
         name: "",
         pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
         image: null,
+        health: { physical: 100, mental: 100},
         id,
         district,
         relationships: {},

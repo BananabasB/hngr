@@ -30,3 +30,7 @@ export function setAlliance(
 export function findTribute(db: HngrDB, sourceId: string) {
     return db.tributes[sourceId]
 }
+
+export function killTribute(db: HngrDB, sourceId: string) {
+    db.tributes[sourceId].health.physical = 0;
+}
