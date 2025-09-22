@@ -10,18 +10,33 @@ export type Tribute = {
 };
 
 export type Pronouns = {
-  subject: string; // he / she / they
-  object: string; // him / her / them
+  subject: string;   // he / she / they
+  object: string;    // him / her / them
   determiner: string; // his / her / their
-  pronoun: string; // his / hers / theirs
+  pronoun: string;   // his / hers / theirs
 };
 
+// reusable story skeleton
+export type EventTemplate = {
+  id: string;
+  type: "kill" | "alliance" | "find" | "feast" | "generic";
+  text: string;
+  roles: string[];
+};
+
+export type Event = {
+  id: string;
+  templateId: string;
+  day: number;
+  tributes: Record<string, string>;
+  description: string; 
+};
+
+// database with tributes + events
 export type HngrDB = {
-  tributeReferralName: {
-    singular: string;
-    plural: string;
-  };
-  tributes: Record<number, Tribute[]>;
+  tributeReferralName: { singular: string; plural: string };
+  tributes: Record<number, Tribute[]>; // district -> tributes
+  events: Event[];
 };
 
 export function setupDatabase() {
@@ -35,6 +50,7 @@ export function setupDatabase() {
       singular: "tribute",
       plural: "tributes",
     },
+    events: [],
     tributes: {
       1: [{
         name: "",
