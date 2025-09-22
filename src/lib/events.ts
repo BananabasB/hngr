@@ -43,6 +43,7 @@ export const templates: EventTemplate[] = [
     },
     effects: (db, { raider, victim }) => {
       raider.foodLvl += victim.foodLvl;
+      victim.foodLvl -= victim.foodLvl;
       adjustTrust(db, victim.id, raider.id, -20)
     }
   },
