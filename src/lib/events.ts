@@ -48,6 +48,15 @@ export const templates: EventTemplate[] = [
     }
   },
   {
+    id: "sponsorFood",
+    type: "find",
+    text: "{tribute.name} recieves food from an unknown sponsor.",
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.foodLvl += 5
+    }
+  },
+  {
     id: "arrow-miss",
     type: "generic",
     text: "{shooter.name} tries to shoot {victim.name} using {shooter.determiner} arrow, and misses.",
