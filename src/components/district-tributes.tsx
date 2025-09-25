@@ -136,6 +136,9 @@ export function EditTribute({ id }: { id: string }) {
       t.pronouns = draftPronouns;
     }
 
+    console.log("all tributes", db.tributes);
+    console.log("count", Object.keys(db.tributes).length);
+
     localStorage.setItem("hngr-db", JSON.stringify(db));
     window.location.reload();
   }

@@ -44,7 +44,7 @@ export type Event = {
   id: string;
   templateId: string;
   day: number;
-  tributes: Record<string, string>;
+  roles: Record<string, string>;
   description: string; 
 };
 
