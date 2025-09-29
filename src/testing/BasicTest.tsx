@@ -1,16 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { simulateGame } from '@/lib/simulation'
+import { loadGame } from '@/lib/simulation'
 import { HngrDB } from '@/lib/setup'
 
 type Props = { data: HngrDB }
 
 export default function BasicTest({ data }: Props) {
-  const [gameEvents, setGameEvents] = useState<any[]>([])
+  const [gameEvents, setGameEvents] = useState<Record<number, any[]>>({})
 
   useEffect(() => {
-    setGameEvents(simulateGame(data))
+    setGameEvents(loadGame(data) ?? {})
   }, [data])
 
   return <p>{JSON.stringify(gameEvents)}</p>

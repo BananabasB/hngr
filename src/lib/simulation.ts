@@ -74,19 +74,32 @@ export function simulateDay(db: HngrDB): Event[] {
   return events;
 }
 
-export function simulateGame(db: HngrDB): Event[][] {
-  const allDays: Event[][] = [];
+export function loadGame(db: HngrDB) {
+  const savedDbString = localStorage.getItem("hngrDb");
+  if (savedDbString) {
+    const savedDb = JSON.parse(savedDbString) as HngrDB;
+    return savedDb.events;
+  }
+  if (Object.keys(db.events).length === 0) {
+    db.events = simulateGame(db);
+    localStorage.setItem("hngrDb", JSON.stringify(db));
+  }
+  return db.events;
+}
+
+export function simulateGame(db: HngrDB): Record<number, Event[]> {
+  const allDays: Record<number, Event[]> = {};
   let day = 1;
 
   while (getAliveTributes(db).length > 1) {
     const dayEvents = simulateDay(db).map(e => ({ ...e, day }));
-    allDays.push(dayEvents);
+    allDays[day] = dayEvents;
     day++;
   }
 
   const winner = getAliveTributes(db)[0];
   if (winner) {
-    allDays.push([
+    allDays[day] = [
       {
         id: 'winner',
         templateId: 'winner',
@@ -94,7 +107,7 @@ export function simulateGame(db: HngrDB): Event[][] {
         roles: { winner: winner.id },
         day,
       },
-    ]);
+    ];
   }
 
   return allDays;

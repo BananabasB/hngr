@@ -109,13 +109,13 @@ export const templates: EventTemplate[] = [
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
-      if (isOnlyTwoTributesLeft(db)) return true;
+      if (isOnlyTwoTributesLeft(db)) return false;
       const trustKV = getTrust(db, killer.id, victim.id);
       const trustVK = getTrust(db, victim.id, killer.id);
       if (trustKV > 50 && trustVK > 50) {
         return isBackstab(db);
       }
-      return true;
+      return false;
     },
     effects(db, {killer, victim}) {
       killTribute(db, killer.id);

@@ -52,7 +52,7 @@ export type Event = {
 export type HngrDB = {
   tributeReferralName: { singular: string; plural: string };
   tributes: Record<string, Tribute>; // tribute ID -> Tribute
-  events: Event[];
+  events: Record<number, Event[]>;
 };
 
 export function setupDatabase() {
