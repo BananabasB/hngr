@@ -17,7 +17,14 @@ export const templates: EventTemplate[] = [
   {
     id: "arrow-kill",
     type: "kill",
-    text: "{killer.name} kills {victim.name} with {shooter.determiner} bow and arrow.",
+    text: [
+      { role: "killer", prop: "name" },
+      " kills ",
+      { role: "victim", prop: "name" },
+      " with ",
+      { role: "shooter", prop: "pronouns.determiner" },
+      " bow and arrow."
+    ],
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
@@ -38,7 +45,10 @@ export const templates: EventTemplate[] = [
   {
     id: "eatFood",
     type: "feast",
-    text: "{tribute.name} eats some food.",
+    text: [
+      { role: "tribute", prop: "name" },
+      " eats some food."
+    ],
     roles: ["tribute"],
     conditions: (db, { tribute }) => {
       return tribute.foodLvl >= 1;
@@ -52,7 +62,10 @@ export const templates: EventTemplate[] = [
   {
     id: "findFood",
     type: "find",
-    text: "{tribute.name} hunts for food and succeeds.",
+    text: [
+      { role: "tribute", prop: "name" },
+      " hunts for food and succeeds."
+    ],
     roles: ["tribute"],
     effects: (db, { tribute }) => {
       tribute.foodLvl += 2;
@@ -62,7 +75,16 @@ export const templates: EventTemplate[] = [
   {
     id: "stealFood",
     type: "find",
-    text: "{raider.name} raids {victim.name}'s base and finds some food. {victim.name} saw {raider.object}.",
+    text: [
+      { role: "raider", prop: "name" },
+      " raids ",
+      { role: "victim", prop: "name" },
+      "'s base and finds some food. ",
+      { role: "victim", prop: "name" },
+      " saw ",
+      { role: "raider", prop: "object" },
+      "."
+    ],
     roles: ["raider", "victim"],
     conditions(db, { victim }) {
       return victim.foodLvl >= 1;
@@ -76,7 +98,10 @@ export const templates: EventTemplate[] = [
   {
     id: "sponsorFood",
     type: "find",
-    text: "{tribute.name} recieves food from an unknown sponsor.",
+    text: [
+      { role: "tribute", prop: "name" },
+      " recieves food from an unknown sponsor."
+    ],
     roles: ["tribute"],
     effects: (db, { tribute }) => {
       tribute.foodLvl += 5;
@@ -86,7 +111,14 @@ export const templates: EventTemplate[] = [
   {
     id: "arrow-miss",
     type: "generic",
-    text: "{shooter.name} tries to shoot {victim.name} using {shooter.determiner} arrow, and misses.",
+    text: [
+      { role: "shooter", prop: "name" },
+      " tries to shoot ",
+      { role: "victim", prop: "name" },
+      " using ",
+      { role: "shooter", prop: "pronouns.determiner" },
+      " arrow, and misses."
+    ],
     roles: ["shooter", "target"],
     conditions(db, { shooter, target }) {
       if (!shooter || !target) return false;
@@ -105,7 +137,14 @@ export const templates: EventTemplate[] = [
   {
     id: "hornets-kill-both",
     type: "kill",
-    text: "{killer.name} tries to aggrevate hornets on a tree using {killer.determiner} stick, and kills {victim.name} - but then falls off the tree and dies as well.",
+    text: [
+      { role: "killer", prop: "name" },
+      " tries to aggrevate hornets on a tree using ",
+      { role: "killer", prop: "pronouns.determiner" },
+      " stick, and kills ",
+      { role: "victim", prop: "name" },
+      " - but then falls off the tree and dies as well."
+    ],
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
@@ -127,7 +166,14 @@ export const templates: EventTemplate[] = [
   {
     id: "hornets-kill-victim",
     type: "kill",
-    text: "{killer.name} tries to aggrevate hornets on a tree using {killer.determiner} stick - killing {victim.name}.",
+    text: [
+      { role: "killer", prop: "name" },
+      " tries to aggrevate hornets on a tree using ",
+      { role: "killer", prop: "pronouns.determiner" },
+      " stick - killing ",
+      { role: "victim", prop: "name" },
+      "."
+    ],
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
@@ -148,7 +194,14 @@ export const templates: EventTemplate[] = [
   {
     id: "hornets-kill-nobody",
     type: "generic",
-    text: "{killer.name} tries to aggrevate hornets on a tree using {killer.determiner} stick. the hornets don't attack but {victim.name} sees.",
+    text: [
+      { role: "killer", prop: "name" },
+      " tries to aggrevate hornets on a tree using ",
+      { role: "killer", prop: "pronouns.determiner" },
+      " stick. the hornets don't attack but ",
+      { role: "victim", prop: "name" },
+      " sees."
+    ],
     roles: ["killer", "victim"],
     effects(db, {killer, victim}) {
       adjustTrust(db, victim.id, killer.id, -5);
@@ -157,7 +210,12 @@ export const templates: EventTemplate[] = [
   {
     id: "suicide",
     type: "kill",
-    text: "{victim.name} takes {victim.determiner} own life due to stress.",
+    text: [
+      { role: "victim", prop: "name" },
+      " takes ",
+      { role: "victim", prop: "pronouns.determiner" },
+      " own life due to stress."
+    ],
     roles: ["victim"],
     conditions: (db, { victim }) => {
       // only allow this event when the victim exists and mental health is low
@@ -173,7 +231,14 @@ export const templates: EventTemplate[] = [
   {
     id: "hornets-kill-killer",
     type: "kill",
-    text: "{killer.name} tries to aggrevate hornets on a tree using {killer.determiner} stick. the hornets don't attack but {killer.object} falls off the tree and dies.",
+    text: [
+      { role: "killer", prop: "name" },
+      " tries to aggrevate hornets on a tree using ",
+      { role: "killer", prop: "pronouns.determiner" },
+      " stick. the hornets don't attack but ",
+      { role: "killer", prop: "name" },
+      " falls off the tree and dies."
+    ],
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
@@ -194,7 +259,14 @@ export const templates: EventTemplate[] = [
   {
     id: "campfire-stories-3",
     type: "generic",
-    text: "{participant1.name}, {participant2.name}, and {participant3.name} share stories around a fire.",
+    text: [
+      { role: "participant1", prop: "name" },
+      ", ",
+      { role: "participant2", prop: "name" },
+      ", and ",
+      { role: "participant3", prop: "name" },
+      " share stories around a fire."
+    ],
     roles: ["participant1", "participant2", "participant3"],
     effects: (db, roles) => {
       const participants = [
@@ -214,7 +286,12 @@ export const templates: EventTemplate[] = [
   {
     id: "alliance-formed",
     type: "generic",
-    text: "{tribute1.name} and {tribute2.name} form an alliance, strengthening their bond.",
+    text: [
+      { role: "tribute1", prop: "name" },
+      " and ",
+      { role: "tribute2", prop: "name" },
+      " form an alliance, strengthening their bond."
+    ],
     roles: ["tribute1", "tribute2"],
     effects: (db, { tribute1, tribute2 }) => {
       adjustTrust(db, tribute1.id, tribute2.id, 20);
@@ -224,7 +301,12 @@ export const templates: EventTemplate[] = [
   {
     id: "share-food",
     type: "generic",
-    text: "{giver.name} shares food with {receiver.name}, building trust between them.",
+    text: [
+      { role: "giver", prop: "name" },
+      " shares food with ",
+      { role: "receiver", prop: "name" },
+      ", building trust between them."
+    ],
     roles: ["giver", "receiver"],
     conditions: (db, { giver }) => {
       return giver.foodLvl >= 1;

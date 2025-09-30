@@ -13,16 +13,12 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function interpolateText(templateText: string, roles: Record<string, Tribute>): string {
-  return templateText.replace(/\{(\w+)(?:\.(\w+))?\}/g, (_, roleName, prop) => {
-    const tribute = roles[roleName];
-    if (!tribute) return '';
-    if (prop) {
-      // @ts-ignore
-      return tribute[prop] ?? '';
-    }
-    return tribute.name;
-  });
+function renderText(parts: (string | { role: string; prop: string })[], roles: Record<string, Tribute>): string {
+  return parts.map(part => {
+    if (typeof part === "string") return part;
+    const [first, ...rest] = part.prop.split(".");
+    return rest.reduce((acc: any, key) => acc?.[key], (roles[part.role] as any)?.[first]) ?? "";
+  }).join("");
 }
 
 export function simulateDay(db: HngrDB): Event[] {
@@ -58,7 +54,7 @@ export function simulateDay(db: HngrDB): Event[] {
       template.effects(db, roles);
     }
 
-    const description = interpolateText(template.text, roles);
+    const description = template.text;
 
     events.push({
       id: template.id,
@@ -103,7 +99,7 @@ export function simulateGame(db: HngrDB): Record<number, Event[]> {
       {
         id: 'winner',
         templateId: 'winner',
-        description: `${winner.name} wins the game!`,
+        description: [{ role: "winner", prop: "name" }, " wins the game!"],
         roles: { winner: winner.id },
         day,
       },

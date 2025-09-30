@@ -31,10 +31,12 @@ export type Pronouns = {
 };
 
 // reusable story skeleton
+export type EventTextPart = string | { role: string; prop: string };
+
 export type EventTemplate = {
   id: string;
   type: "kill" | "kill2" | "alliance" | "find" | "feast" | "generic";
-  text: string;
+  text: EventTextPart[];
   roles: string[];
   effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;
   conditions?: (db: HngrDB, tributes: Record<string, Tribute>) => boolean;
@@ -45,7 +47,7 @@ export type Event = {
   templateId: string;
   day: number;
   roles: Record<string, string>;
-  description: string; 
+  description: EventTextPart[];
 };
 
 // database with tributes + events

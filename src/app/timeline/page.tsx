@@ -1,6 +1,7 @@
 "use client"
 import BasicTest from "@/testing/BasicTest";
 import { load } from "@/lib/localStorage";
+import EventTimeline from "@/components/events";
 
 
 export default function Page() {
@@ -8,6 +9,6 @@ export default function Page() {
   const db = load("hngr-db");
 
   return (
-    <BasicTest data={db} />
+    <EventTimeline data={db} />
   );
 }
