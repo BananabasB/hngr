@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { cookies } from "next/headers";
 import { SidebarPersistence } from "@/lib/sidebar-persistence";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ClerkProvider } from "@/components/clerk-provider";
 
 const ibmMono = IBM_Plex_Mono({
   variable: "--font-ibm-mono",
@@ -29,6 +30,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${ibmMono.className} antialiased`}>
+        <ClerkProvider>
         <ThemeProvider
         attribute="class"
             defaultTheme="system"
@@ -49,6 +51,7 @@ export default async function RootLayout({
           </SidebarProvider>
         </div>
         </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

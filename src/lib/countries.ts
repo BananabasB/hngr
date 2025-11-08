@@ -1,0 +1,23 @@
+// country codes data with flags and dialing codes
+export const countries = [
+  { value: "gb", label: "United Kingdom", dialCode: "+44" },
+  { value: "us", label: "United States", dialCode: "+1" },
+  { value: "ca", label: "Canada", dialCode: "+1" },
+  { value: "au", label: "Australia", dialCode: "+61" },
+  { value: "nz", label: "New Zealand", dialCode: "+64" },
+  { value: "ie", label: "Ireland", dialCode: "+353" },
+  { value: "fr", label: "France", dialCode: "+33" },
+  { value: "de", label: "Germany", dialCode: "+49" },
+  { value: "it", label: "Italy", dialCode: "+39" },
+  { value: "es", label: "Spain", dialCode: "+34" },
+  { value: "pt", label: "Portugal", dialCode: "+351" },
+  { value: "nl", label: "Netherlands", dialCode: "+31" },
+  { value: "be", label: "Belgium", dialCode: "+32" },
+  { value: "ch", label: "Switzerland", dialCode: "+41" },
+  { value: "at", label: "Austria", dialCode: "+43" },
+  { value: "se", label: "Sweden", dialCode: "+46" },
+  { value: "no", label: "Norway", dialCode: "+47" },
+  { value: "dk", label: "Denmark", dialCode: "+45" },
+  { value: "fi", label: "Finland", dialCode: "+358" },
+  { value: "jp", label: "Japan", dialCode: "+81" },
+] as const

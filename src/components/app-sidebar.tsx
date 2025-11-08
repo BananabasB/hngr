@@ -18,9 +18,11 @@ import {
   Share,
   SquareTerminal,
 } from "lucide-react";
-
 import { usePathname } from "next/navigation";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarRail, SidebarTrigger } from "@/components/ui/sidebar";
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
 
 const header = {
   items: [
@@ -78,6 +80,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         ))}
       </SidebarContent>
+      <SidebarFooter>
+        <Card className="p-4 gap-2">
+          <span className="text-xs text-muted-foreground font-bold">Account</span>
+        <SignedOut>
+          <Button asChild><SignInButton /></Button>
+          <Button variant="secondary" asChild><SignUpButton /></Button>
+        </SignedOut>
+        <SignedIn><UserButton showName={true} /></SignedIn>
+        </Card>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
