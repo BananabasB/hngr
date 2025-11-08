@@ -135,6 +135,15 @@ export const templates: EventTemplate[] = [
     },
   },
   {
+    id: "roly-poly",
+    type: "generic",
+    text: [
+      { role: "rolypolyer", prop: "name" },
+      " does a roly poly for no reason."
+    ],
+    roles: ["rolypolyer"],
+  },
+  {
     id: "hornets-kill-both",
     type: "kill",
     text: [
@@ -281,6 +290,18 @@ export const templates: EventTemplate[] = [
           }
         }
       }
+    },
+  },
+  {
+    id: "findFoodFail",
+    type: "kill",
+    text: [
+      { role: "victim", prop: "name" },
+      " hunts for food and gets killed by beasts."
+    ],
+    roles: ["victim"],
+    effects: (db, { victim }) => {
+      victim.health.physical == 0;
     },
   },
   {

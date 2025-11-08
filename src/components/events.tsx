@@ -16,7 +16,7 @@ export default function EventTimeline({ data }: Props) {
   return (
     <div className="flex flex-col text-center p-4 gap-4">
       {Object.entries(eventsByDay).map(([day, events]) => (
-        <div key={day} className="flex flex-col gap-4">
+        <div key={`day-${day}`} className="flex flex-col gap-4">
           <h2 className={`text-3xl font-bold mb-2 ${gupter.className}`}>
             day {day}
           </h2>

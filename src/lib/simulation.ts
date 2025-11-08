@@ -70,17 +70,37 @@ export function simulateDay(db: HngrDB): Event[] {
   return events;
 }
 
-export function loadGame(db: HngrDB) {
-  const savedDbString = localStorage.getItem("hngrDb");
-  if (savedDbString) {
-    const savedDb = JSON.parse(savedDbString) as HngrDB;
-    return savedDb.events;
+export function loadGame(db: HngrDB | null | undefined) {
+  if (!db) {
+    console.error("loadGame() called with null or undefined db");
+    return {};
   }
-  if (Object.keys(db.events).length === 0) {
+
+  // server-side: skip localStorage usage
+  if (typeof window === "undefined") {
+    return db.events ?? {};
+  }
+
+  try {
+    const savedDbString = localStorage.getItem("hngrDb");
+    if (savedDbString) {
+      const savedDb = JSON.parse(savedDbString) as HngrDB;
+      return savedDb.events ?? {};
+    }
+  } catch (e) {
+    console.error("loadGame: failed to parse saved data", e);
+  }
+
+  if (!db.events || Object.keys(db.events).length === 0) {
     db.events = simulateGame(db);
-    localStorage.setItem("hngrDb", JSON.stringify(db));
+    try {
+      localStorage.setItem("hngrDb", JSON.stringify(db));
+    } catch (e) {
+      console.warn("loadGame: could not save hngrDb", e);
+    }
   }
-  return db.events;
+
+  return db.events ?? {};
 }
 
 export function simulateGame(db: HngrDB): Record<number, Event[]> {
