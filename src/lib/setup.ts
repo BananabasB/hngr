@@ -35,7 +35,7 @@ export type EventTextPart = string | { role: string; prop: string };
 
 export type EventTemplate = {
   id: string;
-  type: "kill" | "kill2" | "alliance" | "find" | "feast" | "generic";
+  type: "kill" | "kill2" | "alliance" | "find" | "feast" | "generic" | "training" | "combat";
   text: EventTextPart[];
   roles: string[];
   effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;

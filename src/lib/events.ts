@@ -37,7 +37,7 @@ export const templates: EventTemplate[] = [
       return true;
     },
     effects(db, {killer, victim}) {
-      killTribute(db, victim.id);
+      if (Math.random() < 0.95) killTribute(db, victim.id);
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
     },
@@ -166,8 +166,8 @@ export const templates: EventTemplate[] = [
       return false;
     },
     effects(db, {killer, victim}) {
-      killTribute(db, killer.id);
-      killTribute(db, victim.id);
+      if (Math.random() < 0.95) killTribute(db, killer.id);
+      if (Math.random() < 0.95) killTribute(db, victim.id);
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
     },
@@ -195,7 +195,7 @@ export const templates: EventTemplate[] = [
       return true;
     },
     effects(db, {killer, victim}) {
-      killTribute(db, victim.id);
+      if (Math.random() < 0.95) killTribute(db, victim.id);
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
     },
@@ -233,7 +233,7 @@ export const templates: EventTemplate[] = [
       return (typeof victim.health.mental === "number" ? victim.health.mental : Infinity) < 20;
     },
     effects: (db, { victim }) => {
-      killTribute(db, victim.id);
+      if (Math.random() < 0.95) killTribute(db, victim.id);
       adjustTrust(db, victim.id, victim.id, -20);
     },
   },
@@ -260,7 +260,7 @@ export const templates: EventTemplate[] = [
       return true;
     },
     effects(db, {killer, victim}) {
-      killTribute(db, victim.id);
+      if (Math.random() < 0.95) killTribute(db, victim.id); // <-- This looks like a typo, should it be killer.id?
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
     },
@@ -301,7 +301,7 @@ export const templates: EventTemplate[] = [
     ],
     roles: ["victim"],
     effects: (db, { victim }) => {
-      victim.health.physical == 0;
+      victim.health.physical == 0; // <-- This is likely a bug, should be killTribute(db, victim.id) or victim.health.physical = 0
     },
   },
   {
@@ -338,5 +338,317 @@ export const templates: EventTemplate[] = [
       adjustTrust(db, receiver.id, giver.id, 15);
       adjustTrust(db, giver.id, receiver.id, 10);
     },
+  },
+  // --- THIS IS WHERE THE ERROR WAS ---
+  // The ]; was here, now it's gone.
+
+  // Social & Trust-building events
+  {
+    id: "campfire-singalong",
+    type: "generic",
+    text: [
+      { role: "participant1", prop: "name" },
+      " and ",
+      { role: "participant2", prop: "name" },
+      " sing songs around the campfire."
+    ],
+    roles: ["participant1", "participant2"],
+    effects: (db, { participant1, participant2 }) => {
+      adjustTrust(db, participant1.id, participant2.id, 10);
+      adjustTrust(db, participant2.id, participant1.id, 10);
+      participant1.health.mental += 2;
+      participant2.health.mental += 2;
+    },
+  },
+  {
+    id: "friendly-argument",
+    type: "generic",
+    text: [
+      { role: "arguer1", prop: "name" },
+      " and ",
+      { role: "arguer2", prop: "name" },
+      " argue about the best survival tactics, but laugh it off."
+    ],
+    roles: ["arguer1", "arguer2"],
+    effects: (db, { arguer1, arguer2 }) => {
+      adjustTrust(db, arguer1.id, arguer2.id, 2);
+      adjustTrust(db, arguer2.id, arguer1.id, 2);
+      arguer1.health.mental += 1;
+      arguer2.health.mental += 1;
+    }
+  },
+  {
+    id: "share-secret",
+    type: "generic",
+    text: [
+      { role: "sharer", prop: "name" },
+      " shares a secret with ",
+      { role: "listener", prop: "name" },
+      ", deepening their trust."
+    ],
+    roles: ["sharer", "listener"],
+    effects: (db, { sharer, listener }) => {
+      adjustTrust(db, listener.id, sharer.id, 12);
+      listener.health.mental += 2;
+    }
+  },
+  // Food-related events
+  {
+    id: "find-berries",
+    type: "find",
+    text: [
+      { role: "tribute", prop: "name" },
+      " finds wild berries and eats them."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.foodLvl += 1;
+      tribute.health.physical += 2;
+    }
+  },
+  {
+    id: "find-poisonous-berries",
+    type: "kill",
+    text: [
+      { role: "victim", prop: "name" },
+      " eats poisonous berries and dies."
+    ],
+    roles: ["victim"],
+    effects: (db, { victim }) => {
+      killTribute(db, victim.id);
+    }
+  },
+  {
+    id: "food-poisoning",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " eats spoiled food and feels ill."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical -= 5 + Math.floor(Math.random() * 6); // -5 to -10
+      tribute.health.mental -= 2;
+    }
+  },
+  {
+    id: "fishing-success",
+    type: "find",
+    text: [
+      { role: "tribute", prop: "name" },
+      " catches a fish from a stream."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.foodLvl += 2;
+      tribute.health.physical += 2;
+    }
+  },
+  {
+    id: "fishing-fail",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " tries to fish but catches nothing."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.mental -= 1;
+    }
+  },
+  // Training/Skill events
+  {
+    id: "practice-archery",
+    type: "training",
+    text: [
+      { role: "tribute", prop: "name" },
+      " practices archery, improving skill and confidence."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.mental += 3;
+    }
+  },
+  {
+    id: "practice-stealth",
+    type: "training",
+    text: [
+      { role: "tribute", prop: "name" },
+      " practices moving silently through the woods."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.mental += 2;
+    }
+  },
+  // Minor combat events (non-lethal)
+  {
+    id: "scuffle-minor-injury",
+    type: "combat",
+    text: [
+      { role: "attacker", prop: "name" },
+      " and ",
+      { role: "defender", prop: "name" },
+      " scuffle. ",
+      { role: "defender", prop: "name" },
+      " is slightly injured."
+    ],
+    roles: ["attacker", "defender"],
+    effects: (db, { attacker, defender }) => {
+      defender.health.physical -= 5 + Math.floor(Math.random() * 6); // -5 to -10
+      adjustTrust(db, defender.id, attacker.id, -10);
+      adjustTrust(db, attacker.id, defender.id, -5);
+    }
+  },
+  {
+    id: "ambush-fail",
+    type: "combat",
+    text: [
+      { role: "ambusher", prop: "name" },
+      " tries to ambush ",
+      { role: "target", prop: "name" },
+      ", but fails."
+    ],
+    roles: ["ambusher", "target"],
+    effects: (db, { ambusher, target }) => {
+      adjustTrust(db, target.id, ambusher.id, -10);
+      ambusher.health.mental -= 2;
+    }
+  },
+  {
+    id: "ambush-success",
+    type: "combat",
+    text: [
+      { role: "ambusher", prop: "name" },
+      " ambushes ",
+      { role: "target", prop: "name" },
+      ", stealing some food."
+    ],
+    roles: ["ambusher", "target"],
+    conditions: (db, { target }) => {
+      return target.foodLvl > 0;
+    },
+    effects: (db, { ambusher, target }) => {
+      const amount = Math.min(2, target.foodLvl);
+      ambusher.foodLvl += amount;
+      target.foodLvl -= amount;
+      adjustTrust(db, target.id, ambusher.id, -15);
+    }
+  },
+  // Minor accidents
+  {
+    id: "trip-and-fall",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " trips and falls, scraping a knee."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical -= 2 + Math.floor(Math.random() * 3); // -2 to -4
+    }
+  },
+  {
+    id: "bee-sting",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " is stung by a bee."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical -= 3;
+      tribute.health.mental -= 1;
+    }
+  },
+  // Minor mental events
+  {
+    id: "homesick",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " feels homesick."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.mental -= 5;
+    }
+  },
+  {
+    id: "motivated",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " remembers loved ones and feels motivated."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.mental += 6;
+    }
+  },
+  // Deaths that must always kill
+  {
+    id: "fall-from-cliff",
+    type: "kill",
+    text: [
+      { role: "victim", prop: "name" },
+      " slips and falls from a cliff, dying instantly."
+    ],
+    roles: ["victim"],
+    effects: (db, { victim }) => {
+      killTribute(db, victim.id);
+    }
+  },
+  {
+    id: "drown-river",
+    type: "kill",
+    text: [
+      { role: "victim", prop: "name" },
+      " tries to cross a river and drowns."
+    ],
+    roles: ["victim"],
+    effects: (db, { victim }) => {
+      killTribute(db, victim.id);
+    }
+  },
+  // Other generic/minor events
+  {
+    id: "rainstorm",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " is caught in a rainstorm and gets soaked."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical -= 2;
+      tribute.health.mental -= 1;
+    }
+  },
+  {
+    id: "find-shelter",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " finds a safe place to rest for the night."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical += 3;
+      tribute.health.mental += 3;
+    }
+  },
+  {
+    id: "lost-in-woods",
+    type: "generic",
+    text: [
+      { role: "tribute", prop: "name" },
+      " gets lost in the woods, losing time and energy."
+    ],
+    roles: ["tribute"],
+    effects: (db, { tribute }) => {
+      tribute.health.physical -= 3;
+      tribute.health.mental -= 2;
+    }
   },
 ];

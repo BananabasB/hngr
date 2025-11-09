@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/input-otp";
 import { Google } from "@/components/ui/svgs/google"; // added
 import { Roboto } from "next/font/google"; // added
+import { gupter}
 
 // added roboto font
 const roboto = Roboto({

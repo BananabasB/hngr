@@ -6,7 +6,7 @@ const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 export default function About() {
   return (
     <div className="items-center gap-3 content-center flex flex-col justify-center text-center h-full">
-      <div className="md:max-w-2/3 gap-3 flex flex-col text-center justify-center">
+      <div className="md:max-w-2/3 gap-5 flex flex-col text-center justify-center">
         <h1 className={`${gupter.className} text-6xl text-center font-stretch-75%`}>
           acknowledgements
         </h1>
@@ -27,7 +27,8 @@ export default function About() {
           also, we wouldn't have this beautiful sidebar without <b>shadcn/ui</b>
           ! you have helped us so much with making our website look nice too.
         </p>
-        <p>and yes, we <i>suck</i> at logic coding - so we'd like to thank our friend <b>chatGPT</b> for being good at coding.</p>
+        <p>and yes, we <i>suck</i> at logic coding - so we'd like to thank our friends <b>chatGPT</b>, <b>github copilot</b> and <b>gemini</b> for being good at coding.</p>
+        <p>for auth, <b>clerk</b> is a no-brainer - it's so easy for <s aria-hidden="true">chatGPT</s> me to implement!</p>
       </div>
     </div>
   );

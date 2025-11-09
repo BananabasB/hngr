@@ -21,53 +21,182 @@ function renderText(parts: (string | { role: string; prop: string })[], roles: R
   }).join("");
 }
 
+function cloneDb(db: HngrDB): HngrDB {
+  return JSON.parse(JSON.stringify(db));
+}
+
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = array.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function maybeSwapRoles<T>(roles: Record<string, T>, swapProbability = 0.1): Record<string, T> {
+  const roleKeys = Object.keys(roles);
+  if (roleKeys.length < 2) return roles;
+  if (Math.random() < swapProbability) {
+    const idx1 = Math.floor(Math.random() * roleKeys.length);
+    let idx2 = Math.floor(Math.random() * roleKeys.length);
+    while (idx2 === idx1) {
+      idx2 = Math.floor(Math.random() * roleKeys.length);
+    }
+    const key1 = roleKeys[idx1];
+    const key2 = roleKeys[idx2];
+    const newRoles = { ...roles };
+    const temp = newRoles[key1];
+    newRoles[key1] = newRoles[key2];
+    newRoles[key2] = temp;
+    return newRoles;
+  }
+  return roles;
+}
+
 export function simulateDay(db: HngrDB): Event[] {
+  const dbCopy = cloneDb(db);
   const events: Event[] = [];
-  const alive = getAliveTributes(db);
-  const iterations = 6 + Math.floor(Math.random() * 2); // 6 or 7 events per day
+  const alive = getAliveTributes(dbCopy);
+  const iterations = 8 + Math.floor(Math.random() * 3); // 8 to 10 events per day
 
   for (let i = 0; i < iterations; i++) {
-    const template = pickRandom(templates);
-    const roles: Record<string, Tribute> = {};
+    const shuffledTemplates = shuffleArray(templates);
+    let eventAdded = false;
 
-    // Assign tributes to roles
-    if (template.roles) {
-      let valid = true;
-      for (const role of template.roles) {
-        const aliveTributes = getAliveTributes(db).filter(t => !Object.values(roles).includes(t));
-        if (aliveTributes.length === 0) {
-          valid = false;
-          break;
+    for (const template of shuffledTemplates) {
+      const roles: Record<string, Tribute> = {};
+      const eventPool = shuffleArray(alive);
+
+      if (template.roles) {
+        if (eventPool.length < template.roles.length) {
+          continue; // Not enough tributes to fill all roles
         }
-        roles[role] = pickRandom(aliveTributes);
+        for (const role of template.roles) {
+          const tribute = eventPool.shift();
+          if (!tribute) break;
+          roles[role] = tribute;
+        }
+        if (Object.keys(roles).length < template.roles.length) {
+          continue; // skip if not all roles could be filled
+        }
       }
-      if (!valid || Object.keys(roles).length < template.roles.length) {
-        continue; // skip this event if not all roles could be filled
+
+      const finalRoles = maybeSwapRoles(roles, 0.1);
+
+      if (template.conditions && !template.conditions(dbCopy, finalRoles)) {
+        continue;
       }
+
+      if (template.effects) {
+        template.effects(dbCopy, finalRoles);
+      }
+
+      const description = template.text;
+
+      events.push({
+        id: template.id,
+        templateId: template.id,
+        description,
+        roles: Object.fromEntries(
+          Object.entries(finalRoles).map(([k, v]) => [k, v.id])
+        ),
+        day: 0, // Placeholder, can be updated to reflect the real day number if needed
+      });
+
+      eventAdded = true;
+      break; // Move to next iteration after adding an event
     }
 
-    if (template.conditions && !template.conditions(db, roles)) {
+    if (!eventAdded) {
+      // No valid event found this iteration, skip
       continue;
     }
-
-    if (template.effects) {
-      template.effects(db, roles);
-    }
-
-    const description = template.text;
-
-    events.push({
-      id: template.id,
-      templateId: template.id,
-      description,
-      roles: Object.fromEntries(
-        Object.entries(roles).map(([k, v]) => [k, v.id])
-      ),
-      day: 0, // Placeholder, can be updated to reflect the real day number if needed
-    });
   }
 
   return events;
+}
+
+export function simulateGame(db: HngrDB): Record<number, Event[]> {
+  const allDays: Record<number, Event[]> = {};
+  let day = 1;
+  const dbCopy = cloneDb(db);
+
+  while (getAliveTributes(dbCopy).length > 1) {
+    const events: Event[] = [];
+    const alive = getAliveTributes(dbCopy);
+    const iterations = 8 + Math.floor(Math.random() * 3); // 8 to 10 events per day
+
+    for (let i = 0; i < iterations; i++) {
+      const shuffledTemplates = shuffleArray(templates);
+      let eventAdded = false;
+
+      for (const template of shuffledTemplates) {
+        const roles: Record<string, Tribute> = {};
+        const eventPool = shuffleArray(alive);
+
+        if (template.roles) {
+          if (eventPool.length < template.roles.length) {
+            continue;
+          }
+          for (const role of template.roles) {
+            const tribute = eventPool.shift();
+            if (!tribute) break;
+            roles[role] = tribute;
+          }
+          if (Object.keys(roles).length < template.roles.length) {
+            continue;
+          }
+        }
+
+        const finalRoles = maybeSwapRoles(roles, 0.1);
+
+        if (template.conditions && !template.conditions(dbCopy, finalRoles)) {
+          continue;
+        }
+
+        if (template.effects) {
+          template.effects(dbCopy, finalRoles);
+        }
+
+        events.push({
+          id: template.id,
+          templateId: template.id,
+          description: template.text,
+          roles: Object.fromEntries(
+            Object.entries(finalRoles).map(([k, v]) => [k, v.id])
+          ),
+          day,
+        });
+
+        eventAdded = true;
+        break; // Move to next iteration after adding an event
+      }
+
+      if (!eventAdded) {
+        // No valid event found this iteration, skip
+        continue;
+      }
+    }
+
+    allDays[day] = events;
+    day++;
+  }
+
+  const winner = getAliveTributes(dbCopy)[0];
+  if (winner) {
+    allDays[day] = [
+      {
+        id: 'winner',
+        templateId: 'winner',
+        description: [{ role: "winner", prop: "name" }, " wins the game!"],
+        roles: { winner: winner.id },
+        day,
+      },
+    ];
+  }
+
+  return allDays;
 }
 
 export function loadGame(db: HngrDB | null | undefined) {
@@ -101,30 +230,4 @@ export function loadGame(db: HngrDB | null | undefined) {
   }
 
   return db.events ?? {};
-}
-
-export function simulateGame(db: HngrDB): Record<number, Event[]> {
-  const allDays: Record<number, Event[]> = {};
-  let day = 1;
-
-  while (getAliveTributes(db).length > 1) {
-    const dayEvents = simulateDay(db).map(e => ({ ...e, day }));
-    allDays[day] = dayEvents;
-    day++;
-  }
-
-  const winner = getAliveTributes(db)[0];
-  if (winner) {
-    allDays[day] = [
-      {
-        id: 'winner',
-        templateId: 'winner',
-        description: [{ role: "winner", prop: "name" }, " wins the game!"],
-        roles: { winner: winner.id },
-        day,
-      },
-    ];
-  }
-
-  return allDays;
 }
