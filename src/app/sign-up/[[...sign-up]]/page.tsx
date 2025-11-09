@@ -19,8 +19,9 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Google } from "@/components/ui/svgs/google"; // added
-import { Roboto } from "next/font/google"; // added
-import { gupter}
+import { Roboto } from "next/font/google"; // added 
+import { Gupter } from "next/font/google";
+const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 // added roboto font
 const roboto = Roboto({
