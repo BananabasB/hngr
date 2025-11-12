@@ -3,15 +3,22 @@
 import { Button } from "@/components/ui/button";
 import { FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
+import { ClerkWordmarkDark } from "@/components/ui/svgs/clerkWordmarkDark";
+import { ClerkWordmarkLight } from "@/components/ui/svgs/clerkWordmarkLight";
 import { Google } from "@/components/ui/svgs/google";
 import { cn } from "@/lib/utils";
 import * as Clerk from "@clerk/elements/common";
 import * as SignIn from "@clerk/elements/sign-in";
 import { BowArrow, MailOpen } from "lucide-react";
-import { Roboto } from "next/font/google";
+import { Gupter, Roboto } from "next/font/google";
 import { useState, useEffect } from "react";
-
+const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
   weight: ["400", "500", "700"],
   subsets: ["latin"],
@@ -64,7 +71,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState<string | null>(null);
 
   return (
-    <div className="flex min-h-screen items-center text-center justify-center">
+    <div className="flex flex-col  gap-5 min-h-screen items-center text-center justify-center">
       <SignIn.Root>
         <SignIn.Step name="start">
           <div className="flex w-100 flex-col gap-6">
@@ -73,7 +80,7 @@ export default function SignInPage() {
                 <BowArrow className="size-6" />
               </div>
               <span className="sr-only">hngr</span>
-              <h1 className="text-xl font-bold">sign in or sign up</h1>
+              <h1 className={`text-3xl ${gupter.className}`}>sign in or sign up</h1>
               <p className="text-sm text-muted-foreground">
                 we'll check if you have an account with us, and create one if
                 you don't.
@@ -98,7 +105,10 @@ export default function SignInPage() {
                 <Clerk.Label>email address</Clerk.Label>
               </Label>
               <Clerk.Input asChild>
-                <Input value={email ?? ""} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  value={email ?? ""}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </Clerk.Input>
               <Clerk.FieldError />
             </Clerk.Field>
@@ -134,7 +144,7 @@ export default function SignInPage() {
                                   <div
                                     data-status={status}
                                     className={cn(
-                                      'relative flex w-full h-20 text-2xl items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md',
+                                      'relative flex w-full h-20 text-2xl  items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md',
                                       {
                                         'z-10 ring-2 ring-ring ring-offset-background':
                                           status === 'cursor' || status === 'selected',
@@ -144,7 +154,7 @@ export default function SignInPage() {
                                     {value}
                                     {status === 'cursor' && (
                                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                        <div className="animate-caret-blink h-4 w-px bg-foreground duration-1000" />
+                                        <div className="animate-caret-blink h-4 w-px duration-1000" />
                                       </div>
                                     )}
                                   </div>
@@ -161,6 +171,13 @@ export default function SignInPage() {
           </div>
         </SignIn.Step>
       </SignIn.Root>
+      <div className="flex items-center gap-2">
+        <p className="text-muted-foreground text-sm">secured by</p>
+        <a href="https://go.clerk.com/components">
+          <ClerkWordmarkDark className="hidden dark:inline h-4" />
+        <ClerkWordmarkLight className="inline dark:hidden h-4" />
+        </a>
+      </div>
     </div>
   );
 }
