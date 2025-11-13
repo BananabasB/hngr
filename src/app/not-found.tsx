@@ -3,7 +3,7 @@ import { Gupter } from "next/font/google";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
-export default function About() {
+export default function NotFoundPage() {
   return (
     <div className="items-center gap-3 content-center flex flex-col justify-center text-center h-full">
       <div className="md:max-w-1/2 gap-3 flex flex-col text-center justify-center">

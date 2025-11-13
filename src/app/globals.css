@@ -117,6 +117,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -124,4 +125,84 @@
 
 .cl-userButtonOuterIdentifier {
   @apply order-2
+}
+
+:root[data-palette="catppuccin"] {
+  --radius: 0.625rem;
+  
+  /* catppuccin latte (light) */
+  --background: oklch(0.98 0.004 106); /* base */
+  --foreground: oklch(0.37 0.02 256); /* text */
+  --card: oklch(0.96 0.004 106); /* mantle */
+  --card-foreground: oklch(0.37 0.02 256);
+  --popover: oklch(0.94 0.005 106); /* crust */
+  --popover-foreground: oklch(0.37 0.02 256);
+  --primary: oklch(0.62 0.18 266); /* lavender */
+  --primary-foreground: oklch(0.98 0.004 106);
+  --secondary: oklch(0.71 0.14 232); /* sapphire */
+  --secondary-foreground: oklch(0.98 0.004 106);
+  --muted: oklch(0.91 0.01 253); /* surface0 */
+  --muted-foreground: oklch(0.52 0.02 257); /* subtext0 */
+  --accent: oklch(0.76 0.17 194); /* teal */
+  --accent-foreground: oklch(0.37 0.02 256);
+  --destructive: oklch(0.61 0.20 15); /* red */
+  --destructive-foreground: oklch(0.98 0.004 106);
+  --border: oklch(0.86 0.01 253); /* surface1 */
+  --input: oklch(0.86 0.01 253);
+  --ring: oklch(0.62 0.18 266); /* lavender */
+  
+  /* charts using catppuccin accent colors */
+  --chart-1: oklch(0.61 0.20 15); /* red */
+  --chart-2: oklch(0.76 0.17 194); /* teal */
+  --chart-3: oklch(0.71 0.14 232); /* sapphire */
+  --chart-4: oklch(0.79 0.16 308); /* pink */
+  --chart-5: oklch(0.83 0.12 85); /* yellow */
+  
+  --sidebar: oklch(0.96 0.004 106); /* mantle */
+  --sidebar-foreground: oklch(0.37 0.02 256);
+  --sidebar-primary: oklch(0.62 0.18 266); /* lavender */
+  --sidebar-primary-foreground: oklch(0.98 0.004 106);
+  --sidebar-accent: oklch(0.91 0.01 253); /* surface0 */
+  --sidebar-accent-foreground: oklch(0.37 0.02 256);
+  --sidebar-border: oklch(0.86 0.01 253);
+  --sidebar-ring: oklch(0.62 0.18 266);
+}
+
+:root[data-palette="catppuccin"].dark {
+  /* catppuccin mocha (dark) */
+  --background: oklch(0.23 0.01 264); /* base */
+  --foreground: oklch(0.87 0.01 266); /* text */
+  --card: oklch(0.21 0.01 264); /* mantle */
+  --card-foreground: oklch(0.87 0.01 266);
+  --popover: oklch(0.19 0.01 264); /* crust */
+  --popover-foreground: oklch(0.87 0.01 266);
+  --primary: oklch(0.75 0.14 267); /* lavender */
+  --primary-foreground: oklch(0.23 0.01 264);
+  --secondary: oklch(0.77 0.11 233); /* sapphire */
+  --secondary-foreground: oklch(0.23 0.01 264);
+  --muted: oklch(0.30 0.01 264); /* surface0 */
+  --muted-foreground: oklch(0.63 0.02 266); /* subtext0 */
+  --accent: oklch(0.79 0.13 196); /* teal */
+  --accent-foreground: oklch(0.23 0.01 264);
+  --destructive: oklch(0.68 0.16 15); /* red */
+  --destructive-foreground: oklch(0.87 0.01 266);
+  --border: oklch(0.33 0.01 264); /* surface1 */
+  --input: oklch(0.36 0.01 264); /* surface2 */
+  --ring: oklch(0.75 0.14 267); /* lavender */
+  
+  /* charts using catppuccin accent colors */
+  --chart-1: oklch(0.68 0.16 15); /* red */
+  --chart-2: oklch(0.79 0.13 196); /* teal */
+  --chart-3: oklch(0.77 0.11 233); /* sapphire */
+  --chart-4: oklch(0.82 0.13 309); /* pink */
+  --chart-5: oklch(0.87 0.09 86); /* yellow */
+  
+  --sidebar: oklch(0.21 0.01 264); /* mantle */
+  --sidebar-foreground: oklch(0.87 0.01 266);
+  --sidebar-primary: oklch(0.75 0.14 267); /* lavender */
+  --sidebar-primary-foreground: oklch(0.23 0.01 264);
+  --sidebar-accent: oklch(0.30 0.01 264); /* surface0 */
+  --sidebar-accent-foreground: oklch(0.87 0.01 266);
+  --sidebar-border: oklch(0.33 0.01 264);
+  --sidebar-ring: oklch(0.75 0.14 267);
 }

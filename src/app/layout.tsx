@@ -37,14 +37,14 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-        <div className="relative h-screen w-screen flex bg-base">
+        <div className="relative h-screen w-screen flex bg-background">
           <SidebarProvider defaultOpen={defaultOpen}>
             <SidebarPersistence />
             <div className="absolute top-0 left-0 w-full h-10 p-2 bg-gradient-to-t from-transparent to-base z-50 md:hidden">
               <SidebarTrigger/>
             </div>
             <AppSidebar />
-            <main className="flex-1 h-screen overflow-y-auto">
+            <main className="flex-1 bg-background h-screen overflow-y-auto">
               {children}
 
             </main>

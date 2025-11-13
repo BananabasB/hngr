@@ -6,14 +6,23 @@ import { Label } from "@/components/ui/label"
 import * as React from "react"
 import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogClose, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trash } from "lucide-react";
+import { Trash, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function SettingsPage() {
     const { theme, setTheme } = useTheme()
+  const [palette, setPalette] = React.useState(() => localStorage.getItem("palette") || "catppuccin")
   const [mounted, setMounted] = React.useState(false)
+  const [open, setOpen] = React.useState(false)
+
+  const palettes = [
+    { value: "regular", label: "regular" },
+    { value: "catppuccin", label: "catppuccin" }
+  ]
 
   React.useEffect(() => {
     setMounted(true)
+    document.getRootNode.dataset.palette = palette
   }, [])
 
   if (!mounted) return null
@@ -33,6 +42,40 @@ export default function SettingsPage() {
                 <Label htmlFor="lightDarkMode">light</Label>
               </RadioGroup>
           </li>
+          <li className="border-b-2 flex items-center justify-between p-2 py-4">
+  <span>palette</span>
+  <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        className="w-[160px] justify-between"
+      >
+        {palettes.find((p) => p.value === palette)?.label ?? "select palette"}
+        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-[160px] p-0">
+      <ul className="flex flex-col">
+        {palettes.map((p) => (
+          <li
+            key={p.value}
+            className={`cursor-pointer p-2 hover:bg-accent ${palette === p.value ? "bg-accent text-accent-foreground" : ""}`}
+            onClick={() => {
+              setPalette(p.value)
+              localStorage.setItem("palette", p.value)
+              document.documentElement.dataset.palette = p.value
+              setOpen(false)
+            }}
+          >
+            {p.label}
+          </li>
+        ))}
+      </ul>
+    </PopoverContent>
+  </Popover>
+</li>
           <li className="flex content-center pt-4 items-center justify-between p-2">
             <span>your data</span>
               <Dialog>

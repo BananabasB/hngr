@@ -9,7 +9,7 @@ import BasicTest from "@/testing/BasicTest";
 // You can import this type if it's defined elsewhere, otherwise use 'any' temporarily.
 type HngrDB = any; 
 
-export default function Page() {
+export default function TimelinePage() {
   // 1. Initialize the database state to null/undefined. 
   // This is the value the server will use for its initial render.
   const [db, setDb] = useState<HngrDB | null>(null);
@@ -32,8 +32,6 @@ export default function Page() {
   // 4. Render the full component once the client data is available.
   return (
     <div>
-      {/* BasicTest should also probably be a client component if it uses this data */}
-      <BasicTest /> 
       <EventTimeline data={db} />
     </div>
   );

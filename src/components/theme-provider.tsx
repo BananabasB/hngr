@@ -7,5 +7,14 @@ export function ThemeProvider({
   children,
   ...props
 }: React.ComponentProps<typeof NextThemesProvider>) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  React.useEffect(() => {
+    const palette = localStorage.getItem("palette") || "default"
+    document.documentElement.dataset.palette = palette
+  }, [])
+
+  return (
+    <NextThemesProvider {...props}>
+      {children}
+    </NextThemesProvider>
+  )
 }

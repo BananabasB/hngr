@@ -171,7 +171,7 @@ export default function SignInPage() {
           </div>
         </SignIn.Step>
       </SignIn.Root>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center content-center gap-2">
         <p className="text-muted-foreground text-sm">secured by</p>
         <a href="https://go.clerk.com/components">
           <ClerkWordmarkDark className="hidden dark:inline h-4" />

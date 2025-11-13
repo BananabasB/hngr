@@ -125,7 +125,8 @@ export function simulateGame(db: HngrDB): Record<number, Event[]> {
   while (getAliveTributes(dbCopy).length > 1) {
     const events: Event[] = [];
     const alive = getAliveTributes(dbCopy);
-    const iterations = 8 + Math.floor(Math.random() * 3); // 8 to 10 events per day
+
+    const iterations = 8 + Math.floor(Math.random() * 3); // 8-10 events per day
 
     for (let i = 0; i < iterations; i++) {
       const shuffledTemplates = shuffleArray(templates);
@@ -155,8 +156,17 @@ export function simulateGame(db: HngrDB): Record<number, Event[]> {
           continue;
         }
 
+        // prevent killing the last tribute
         if (template.effects) {
+          const aliveBefore = getAliveTributes(dbCopy).length;
           template.effects(dbCopy, finalRoles);
+          const aliveAfter = getAliveTributes(dbCopy).length;
+          if (aliveAfter === 0 && aliveBefore > 0) {
+            // revert effect if it would kill everyone
+            // simple clone trick
+            Object.assign(dbCopy, cloneDb(db));
+            continue;
+          }
         }
 
         events.push({
@@ -170,19 +180,17 @@ export function simulateGame(db: HngrDB): Record<number, Event[]> {
         });
 
         eventAdded = true;
-        break; // Move to next iteration after adding an event
+        break;
       }
 
-      if (!eventAdded) {
-        // No valid event found this iteration, skip
-        continue;
-      }
+      if (!eventAdded) continue;
     }
 
     allDays[day] = events;
     day++;
   }
 
+  // declare winner (last tribute alive)
   const winner = getAliveTributes(dbCopy)[0];
   if (winner) {
     allDays[day] = [
@@ -198,7 +206,6 @@ export function simulateGame(db: HngrDB): Record<number, Event[]> {
 
   return allDays;
 }
-
 export function loadGame(db: HngrDB | null | undefined) {
   if (!db) {
     console.error("loadGame() called with null or undefined db");
