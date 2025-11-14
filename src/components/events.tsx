@@ -19,6 +19,7 @@ import {
 } from "./ui/dialog";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import { Slider } from "@/components/ui/slider"
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
@@ -55,6 +56,8 @@ export default function EventTimeline({ data }: Props) {
 
   const [dontRemindAgain, setDontRemindAgain] = useState(false);
 
+  const [maxDays, setMaxDays] = useState(10);
+
   useEffect(() => {
     // keep localStorage in sync whenever eventsByDay changes
     try {
@@ -68,7 +71,7 @@ export default function EventTimeline({ data }: Props) {
 
   const generateShuffled = (db: HngrDB) => {
     // run a fresh simulation (simulateGame uses a deep-cloned db internally)
-    const fresh = simulateGame(db);
+    const fresh = simulateGame(db, maxDays);
     const newByDay: Record<string, any[]> = {};
     for (const [day, events] of Object.entries(fresh)) {
       newByDay[day] = shuffleArray(events as any[]);
@@ -100,7 +103,6 @@ export default function EventTimeline({ data }: Props) {
     for (const tributeId in clonedData.tributes) {
       const tribute = clonedData.tributes[tributeId];
       tribute.health = { mental: 100, physical: 100 };
-      tribute.alive = true;
     }
 
     const newEvents = generateShuffled(clonedData);
@@ -140,8 +142,8 @@ export default function EventTimeline({ data }: Props) {
             <DialogHeader className="flex flex-col text-center content-center justify-center items-center">
               <DialogTitle>shuffle events?</DialogTitle>
               <DialogDescription className="text-center">
-                this will clear your current stored events and replace them with a
-                newly shuffled run.
+                this will clear your current stored events and replace them with
+                a newly shuffled run.
               </DialogDescription>
             </DialogHeader>
             <div className="text-sm flex flex-row gap-3 justify-center">
@@ -176,6 +178,21 @@ export default function EventTimeline({ data }: Props) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* slider for maxDays */}
+      <div className="flex flex-row items-center justify-center gap-4">
+        <label htmlFor="maxDaysSlider" className="font-semibold">
+          target length: {maxDays}
+        </label>
+        <Slider
+          id="maxDaysSlider"
+          value={[maxDays]}
+          max={20}
+          step={1}
+          className="max-w-64"
+          onValueChange={(vals) => setMaxDays(vals[0])}
+        />
+      </div>
 
       {/* timeline */}
       {Object.entries(eventsByDay).map(([day, events]) => (

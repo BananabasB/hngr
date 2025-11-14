@@ -11,7 +11,7 @@ import { ClerkProvider } from "@/components/clerk-provider";
 const ibmMono = IBM_Plex_Mono({
   variable: "--font-ibm-mono",
   subsets: ["latin"],
-  weight: ["300", "500", "600", "700"],
+  weight: [ "500", "700"],
 });
 
 export const metadata: Metadata = {
