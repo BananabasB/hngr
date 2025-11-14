@@ -15,12 +15,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Trash, ChevronsUpDown } from "lucide-react";
+import { Trash, ChevronsUpDown, Check } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -73,9 +82,9 @@ export default function SettingsPage() {
             >
               <RadioGroupItem value="system" id="systemDarkMode" />
               <Label htmlFor="systemDarkMode">system</Label>
-              <RadioGroupItem value="dark" id="systemDarkMode" />
+              <RadioGroupItem value="dark" id="darkDarkMode" />
               <Label htmlFor="darkDarkMode">dark</Label>
-              <RadioGroupItem value="light" id="systemDarkMode" />
+              <RadioGroupItem value="light" id="lightDarkMode" />
               <Label htmlFor="lightDarkMode">light</Label>
             </RadioGroup>
           </li>
@@ -91,30 +100,38 @@ export default function SettingsPage() {
                 >
                   {palettes.find((p) => p.value === palette)?.label ??
                     "select palette"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  <ChevronsUpDown className="opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[160px] p-0">
-                <ul className="flex flex-col">
-                  {palettes.map((p) => (
-                    <li
-                      key={p.value}
-                      className={`cursor-pointer p-2 hover:bg-accent ${
-                        palette === p.value
-                          ? "bg-accent text-accent-foreground"
-                          : ""
-                      }`}
-                      onClick={() => {
-                        setPalette(p.value);
-                        localStorage.setItem("palette", p.value);
-                        document.documentElement.dataset.palette = p.value;
-                        setOpen(false);
-                      }}
-                    >
-                      {p.label}
-                    </li>
-                  ))}
-                </ul>
+                <Command>
+                  <CommandInput placeholder="search palette..." className="h-9" />
+                  <CommandList>
+                    <CommandEmpty>no palette found.</CommandEmpty>
+                    <CommandGroup>
+                      {palettes.map((p) => (
+                        <CommandItem
+                          key={p.value}
+                          value={p.value}
+                          onSelect={(currentValue) => {
+                            setPalette(currentValue);
+                            localStorage.setItem("palette", currentValue);
+                            document.documentElement.dataset.palette = currentValue;
+                            setOpen(false);
+                          }}
+                        >
+                          {p.label}
+                          <Check
+                            className={cn(
+                              "ml-auto",
+                              palette === p.value ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
               </PopoverContent>
             </Popover>
           </li>
@@ -144,7 +161,6 @@ export default function SettingsPage() {
                     >
                       <Trash></Trash>i'm sure, erase
                     </Button>
-                    
                   </DialogClose>
                 </DialogFooter>
               </DialogContent>
