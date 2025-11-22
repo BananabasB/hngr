@@ -211,3 +211,7 @@ body {
   --sidebar-border: oklch(0.33 0.01 264);
   --sidebar-ring: oklch(0.75 0.14 267);
 }
+
+span[data-error-code="form_identifier_not_found"] {
+  @apply hidden
+}

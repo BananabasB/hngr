@@ -10,11 +10,11 @@ import { ClerkWordmarkLight } from "@/components/ui/svgs/clerkWordmarkLight";
 import { Google } from "@/components/ui/svgs/google";
 import { cn } from "@/lib/utils";
 import * as Clerk from "@clerk/elements/common";
-import * as SignIn from "@clerk/elements/sign-in";
+import * as SignUp from "@clerk/elements/sign-up";
 import { BowArrow, KeyRound, MailOpen } from "lucide-react";
 import { Gupter, Roboto } from "next/font/google";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
@@ -22,12 +22,11 @@ const roboto = Roboto({
   subsets: ["latin"],
 });
 
+// ... (EmailProviderButton remains the same) ...
 function EmailProviderButton({ email }: { email: string | null }) {
   if (!email) return null;
-
   const domain = email.split("@")[1]?.toLowerCase();
   if (!domain) return null;
-
   const providerMap: Record<string, { name: string; url: string }> = {
     "gmail.com": { name: "gmail", url: "https://mail.google.com" },
     "googlemail.com": { name: "gmail", url: "https://mail.google.com" },
@@ -43,7 +42,6 @@ function EmailProviderButton({ email }: { email: string | null }) {
     "yandex.ru": { name: "yandex.mail", url: "https://mail.yandex.com" },
     "yandex.kz": { name: "yandex.mail", url: "https://mail.yandex.com" },
   };
-
   let provider = undefined as { name: string; url: string } | undefined;
   for (const key of Object.keys(providerMap)) {
     if (domain === key || domain.endsWith(`.${key}`) || domain.endsWith(key)) {
@@ -51,9 +49,7 @@ function EmailProviderButton({ email }: { email: string | null }) {
       break;
     }
   }
-
   if (!provider) return null;
-
   return (
     <Button asChild variant="outline" className="mb-4 w-full">
       <a href={provider.url} target="_blank" rel="noopener noreferrer">
@@ -63,28 +59,40 @@ function EmailProviderButton({ email }: { email: string | null }) {
   );
 }
 
-export default function SignInPage() {
-  const [email, setEmail] = useState<string | null>(null);
-  const router = useRouter();
+export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get("email");
+  const redirected = searchParams.get("redirected") === "true";
 
+  const [email, setEmail] = useState<string | null>(emailFromUrl);
+  const [username, setUsername] = useState<string | null>(null);
+
+  // 1. Create a ref for the input
+  const emailInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. Use Effect to manually "type" the value into the input so Clerk detects it
   useEffect(() => {
-    // watch for the "account not found" error appearing
-    const checkForError = setInterval(() => {
-      const errorElement = document.querySelector('[data-error-code="form_identifier_not_found"]');
-      if (errorElement && email) {
-        clearInterval(checkForError);
-        router.push(`/auth/create/verify?email=${encodeURIComponent(email)}&redirected=true`);
-      }
-    }, 100);
+    if (emailFromUrl && emailInputRef.current) {
+      const input = emailInputRef.current;
 
-    return () => clearInterval(checkForError);
-  }, [email, router]);
+      // This setter hack forces React/Clerk to see the change
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value"
+      )?.set;
+
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(input, emailFromUrl);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+  }, [emailFromUrl]);
 
   return (
     <div className="flex flex-col gap-5 min-h-screen items-center text-center justify-center">
-      <SignIn.Root>
+      <SignUp.Root>
         <div className="max-w-100 gap-5 flex flex-col">
-          <SignIn.Step name="start">
+          <SignUp.Step name="start">
             <div className="flex w-full max-w-md mx-auto flex-col gap-6">
               <div className="gap-2">
                 <div className="mx-auto flex size-8 items-center justify-center rounded-md">
@@ -92,11 +100,12 @@ export default function SignInPage() {
                 </div>
                 <span className="sr-only">hngr</span>
                 <h1 className={`text-3xl ${gupter.className}`}>
-                  sign in or sign up
+                  {redirected ? "sign in or sign up" : "create an account"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  we'll check if you have an account with us, and create one if
-                  you don't.
+                  {redirected
+                    ? "we'll check if you have an account with us, and create one if you don't."
+                    : "welcome to hngr! let's get you set up."}
                 </p>
               </div>
               <Button
@@ -109,49 +118,71 @@ export default function SignInPage() {
                   className="flex w-full items-center justify-center gap-2"
                 >
                   <Google className="size-5 flex-none" />
-                  <span className="flex-1 text-center">Continue with Google</span>
+                  <span className="flex-1 text-center">
+                    Continue with Google
+                  </span>
                 </Clerk.Connection>
               </Button>
               <FieldSeparator>or</FieldSeparator>
-              <Clerk.Field name="identifier" className="gap-2 flex flex-col">
+
+              <Clerk.Field name="emailAddress" className="gap-2 flex flex-col">
                 <Label asChild>
                   <Clerk.Label>email address</Clerk.Label>
                 </Label>
                 <Clerk.Input asChild>
                   <Input
-                    value={email ?? ""}
+                    // 3. Attach ref here
+                    ref={emailInputRef}
+                    // 4. Remove value AND defaultValue. Let Clerk control it.
+                    // 5. Keep onChange to update YOUR local state (for display only)
                     onChange={(e) => setEmail(e.target.value)}
+                    type="email"
                   />
                 </Clerk.Input>
                 <Clerk.FieldError className="block text-destructive text-sm" />
               </Clerk.Field>
 
-              <SignIn.Action submit asChild>
+              <Clerk.Field name="username" className="gap-2 flex flex-col">
+                <Clerk.Label asChild>
+                  <Label>username</Label>
+                </Clerk.Label>
+                <Clerk.Input asChild>
+                  <Input
+                    value={username ?? ""}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="pick a username"
+                  />
+                </Clerk.Input>
+                <Clerk.FieldError className="block text-destructive text-sm" />
+              </Clerk.Field>
+
+              {/* 6. Fixed nesting error: Button inside Action, Captcha outside */}
+              <SignUp.Action submit asChild>
                 <Button>
                   <MailOpen />
                   send me a code
                 </Button>
-              </SignIn.Action>
+              </SignUp.Action>
+              <div id="clerk-captcha" />
 
               <div className="flex items-center w-full justify-center gap-2">
                 <Alert className="text-start">
                   <KeyRound />
                   <AlertTitle>we're passwordless</AlertTitle>
                   <AlertDescription>
-                    passwords are a hassle and make using websites a mess. that's why hngr
-                    doesn't use passwords.
+                    passwords are a hassle and make using websites a mess.
+                    that's why hngr doesn't use passwords.
                   </AlertDescription>
                 </Alert>
               </div>
             </div>
-          </SignIn.Step>
-          <SignIn.Step name="verifications">
+          </SignUp.Step>
+
+          <SignUp.Step name="verifications">
             <div className="flex min-w-80 flex-col gap-6">
-              <SignIn.Strategy name="email_code">
+              <SignUp.Strategy name="email_code">
                 <h1>check your email</h1>
-                <p>
-                  we sent a code to <SignIn.SafeIdentifier />.
-                </p>
+                <p>we sent a code to {email}.</p>
 
                 <EmailProviderButton email={email} />
 
@@ -188,14 +219,14 @@ export default function SignInPage() {
                   <Clerk.FieldError />
                 </Clerk.Field>
 
-                <SignIn.Action submit asChild>
+                <SignUp.Action submit asChild>
                   <Button>continue</Button>
-                </SignIn.Action>
-              </SignIn.Strategy>
+                </SignUp.Action>
+              </SignUp.Strategy>
             </div>
-          </SignIn.Step>
+          </SignUp.Step>
         </div>
-      </SignIn.Root>
+      </SignUp.Root>
 
       <div className="flex items-center justify-center gap-2">
         <p className="text-muted-foreground text-sm">secured by</p>

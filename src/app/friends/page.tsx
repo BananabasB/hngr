@@ -180,15 +180,15 @@ export default function FriendsPage() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="friends">
             <Users className="mr-2 h-4 w-4" />
-            Friends ({friends.length})
+            friends ({friends.length})
           </TabsTrigger>
           <TabsTrigger value="pending">
             <Check className="mr-2 h-4 w-4" />
-            Requests ({pendingRequests.length})
+            requests ({pendingRequests.length})
           </TabsTrigger>
           <TabsTrigger value="sent">
             <UserPlus className="mr-2 h-4 w-4" />
-            Sent ({sentRequests.length})
+            sent ({sentRequests.length})
           </TabsTrigger>
         </TabsList>
 

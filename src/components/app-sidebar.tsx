@@ -21,6 +21,7 @@ import {
   KeyRound,
   Users,
   Heart,
+  BadgeCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -54,7 +55,7 @@ const data = {
     { title: "districts", url: "/", icon: Building2 },
     { title: "timeline", url: "/timeline", icon: Calendar },
     { title: "friends", url: "/friends", icon: Users },
-    { title: "nominations", url: "/nominations", icon: Heart },
+    { title: "nominations", url: "/nominations", icon: BadgeCheck },
     { title: "share", url: "/share", icon: Share },
     { title: "settings", url: "/settings", icon: Settings2 },
   ],

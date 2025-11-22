@@ -57,40 +57,9 @@ export function DistrictTributes({ tributes }: Props) {
                   </Avatar>
                   <span>{t.name || "no name"}</span>
                   <span className="text-gray-500">
-                    (
-                    {(() => {
-                      // If t.pronouns is not present, fallback
-                      if (!t.pronouns) return "no pronouns";
-                      // If it's an array
-                      if (Array.isArray(t.pronouns)) {
-                        const joined = t.pronouns.filter(Boolean).join("/");
-                        return joined || "no pronouns";
-                      }
-                      // If it's an object, join subject/object/determiner/pronoun
-                      if (
-                        typeof t.pronouns === "object" &&
-                        t.pronouns !== null
-                      ) {
-                        const keys = [
-                          "subject",
-                          "object",
-                          "determiner",
-                          "pronoun",
-                        ];
-                        const pronounsObj = t.pronouns as Record<
-                          string,
-                          string
-                        >;
-                        const values = keys
-                          .map((k) => pronounsObj[k])
-                          .filter(Boolean);
-                        const joined = values.join("/");
-                        return joined || "no pronouns";
-                      }
-                      // Fallback
-                      return "no pronouns";
-                    })()}
-                    )
+                    {t.pronouns
+                      ? `${t.pronouns.subject}/${t.pronouns.object}/${t.pronouns.possessive}/${t.pronouns.reflexive}`
+                      : "no pronouns"}
                   </span>
                   <EditTribute id={t.id} />
                 </li>
@@ -113,35 +82,18 @@ export function EditTribute({ id }: { id: string }) {
   // Extract initial state values from the tribute, with fallbacks
   const initialName = tribute?.name ?? "";
   const initialImage = tribute?.image ?? "";
-  // Map pronouns array/object to {subject, object, determiner, pronoun}
-  let initialPronouns = {
+  // Initialize pronouns with existing values or defaults
+  const initialPronouns = tribute?.pronouns ? {
+    subject: tribute.pronouns.subject ?? "",
+    object: tribute.pronouns.object ?? "",
+    possessive: tribute.pronouns.possessive ?? "",
+    reflexive: tribute.pronouns.reflexive ?? "",
+  } : {
     subject: "",
     object: "",
-    determiner: "",
-    pronoun: "",
+    possessive: "",
+    reflexive: "",
   };
-  if (tribute?.pronouns) {
-    if (Array.isArray(tribute.pronouns)) {
-      // If it's an array, map by index
-      initialPronouns = {
-        subject: tribute.pronouns[0] ?? "",
-        object: tribute.pronouns[1] ?? "",
-        determiner: tribute.pronouns[2] ?? "",
-        pronoun: tribute.pronouns[3] ?? "",
-      };
-    } else if (
-      typeof tribute.pronouns === "object" &&
-      tribute.pronouns !== null
-    ) {
-      // If it's an object, use keys
-      initialPronouns = {
-        subject: tribute.pronouns.subject ?? "",
-        object: tribute.pronouns.object ?? "",
-        determiner: tribute.pronouns.determiner ?? "",
-        pronoun: tribute.pronouns.pronoun ?? "",
-      };
-    }
-  }
 
   // local draft state, prefilled with tribute values
   const [draftImage, setDraftImage] = React.useState(initialImage);
@@ -265,16 +217,16 @@ export function EditTribute({ id }: { id: string }) {
               placeholder="them"
             />
             <Input
-              value={draftPronouns.determiner}
+              value={draftPronouns.possessive}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, determiner: e.target.value }))
+                setDraftPronouns((p) => ({ ...p, possessive: e.target.value }))
               }
               placeholder="their"
             />
             <Input
-              value={draftPronouns.pronoun}
+              value={draftPronouns.reflexive}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, pronoun: e.target.value }))
+                setDraftPronouns((p) => ({ ...p, reflexive: e.target.value }))
               }
               placeholder="theirs"
             />

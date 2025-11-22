@@ -14,6 +14,7 @@ import {
   voteOnNomination,
   getNominationVoteStatus,
   getNominationStats,
+  reportNomination,
 } from '@/lib/supabase/services/nominations';
 import { syncUser } from '@/lib/supabase/services/users';
 import type { NominationWithDetails } from '@/lib/supabase/types';
@@ -46,30 +47,93 @@ export default function NominationsPage() {
 
     setLoading(true);
     try {
-      // Sync user with Supabase
-      await syncUser(user);
+      console.log('Starting to load nominations for user:', user.id);
+      console.log('User object:', {
+        id: user.id,
+        emailAddresses: user.emailAddresses?.length,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName
+      });
 
-      // Load nominations
-      const [received, sent, statsData] = await Promise.all([
-        getReceivedNominations(user.id),
-        getSentNominations(user.id),
-        getNominationStats(user.id),
-      ]);
+      // Sync user with Supabase
+      console.log('Syncing user...');
+      await syncUser(user);
+      console.log('User synced successfully');
+
+      // Load nominations with individual error handling
+      console.log('Loading nominations...');
+      let received: NominationWithDetails[] = [];
+      let sent: NominationWithDetails[] = [];
+      let statsData: { sent: number; received: number; pending: number };
+
+      try {
+        received = await getReceivedNominations(user.id);
+        console.log('Received nominations loaded:', received.length);
+      } catch (error) {
+        console.error('Failed to load received nominations:', error);
+        // If it's a database connectivity error, re-throw
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Database error')) {
+          throw new Error(`Failed to load received nominations: ${errorMessage}`);
+        }
+        // If it's a report status error, continue with empty array
+        // The nominations themselves might be loadable
+        console.warn('Continuing with empty nominations due to report status error');
+        received = [];
+      }
+
+      try {
+        sent = await getSentNominations(user.id);
+        console.log('Sent nominations loaded:', sent.length);
+      } catch (error) {
+        console.error('Failed to load sent nominations:', error);
+        // If it's a database connectivity error, re-throw
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('Database error')) {
+          throw new Error(`Failed to load sent nominations: ${errorMessage}`);
+        }
+        // If it's a report status error, continue with empty array
+        console.warn('Continuing with empty sent nominations due to report status error');
+        sent = [];
+      }
+
+      try {
+        statsData = await getNominationStats(user.id);
+        console.log('Stats loaded:', statsData);
+      } catch (error) {
+        console.error('Failed to load nomination stats:', error);
+        throw new Error(`Failed to load nomination stats: ${error}`);
+      }
 
       setReceivedNominations(received);
       setSentNominations(sent);
       setStats(statsData);
 
       // Load vote statuses for received nominations
+      console.log('Loading vote statuses...');
       const statuses: Record<string, boolean> = {};
       await Promise.all(
         received.map(async (nom) => {
-          statuses[nom.id] = await getNominationVoteStatus(nom.id, user.id);
+          try {
+            statuses[nom.id] = await getNominationVoteStatus(nom.id, user.id);
+          } catch (error) {
+            console.error(`Failed to load vote status for nomination ${nom.id}:`, error);
+            statuses[nom.id] = false; // Default to false on error
+          }
         })
       );
       setVoteStatuses(statuses);
+      console.log('All data loaded successfully');
     } catch (error) {
       console.error('Failed to load nominations:', error);
+      // Log more details for debugging
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      } else {
+        console.error('Unknown error type:', typeof error, JSON.stringify(error));
+      }
     } finally {
       setLoading(false);
     }
@@ -97,6 +161,12 @@ export default function NominationsPage() {
     if (!user) return;
     await voteOnNomination(id, user.id);
     setVoteStatuses((prev) => ({ ...prev, [id]: !prev[id] }));
+    await loadData();
+  };
+
+  const handleReport = async (id: string, reason: string, details?: string) => {
+    if (!user) return;
+    await reportNomination(id, user.id, reason as any, details);
     await loadData();
   };
 
@@ -175,7 +245,10 @@ export default function NominationsPage() {
                 onAccept={handleAccept}
                 onReject={handleReject}
                 onVote={handleVote}
+                onReport={handleReport}
                 hasVoted={voteStatuses[nomination.id]}
+                userReported={nomination.user_reported}
+                reportCount={nomination.report_count}
               />
             ))
           )}
@@ -202,7 +275,10 @@ export default function NominationsPage() {
                 type="sent"
                 onDelete={handleDelete}
                 onVote={handleVote}
+                onReport={handleReport}
                 hasVoted={voteStatuses[nomination.id]}
+                userReported={nomination.user_reported}
+                reportCount={nomination.report_count}
               />
             ))
           )}

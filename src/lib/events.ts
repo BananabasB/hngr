@@ -22,7 +22,7 @@ export const templates: EventTemplate[] = [
       " kills ",
       { role: "victim", prop: "name" },
       " with ",
-      { role: "shooter", prop: "pronouns.determiner" },
+      { role: "shooter", prop: "pronouns.possessive" },
       " bow and arrow."
     ],
     roles: ["killer", "victim"],
@@ -116,7 +116,7 @@ export const templates: EventTemplate[] = [
       " tries to shoot ",
       { role: "victim", prop: "name" },
       " using ",
-      { role: "shooter", prop: "pronouns.determiner" },
+      { role: "shooter", prop: "pronouns.possessive" },
       " arrow, and misses."
     ],
     roles: ["shooter", "target"],
@@ -149,7 +149,7 @@ export const templates: EventTemplate[] = [
     text: [
       { role: "killer", prop: "name" },
       " tries to aggrevate hornets on a tree using ",
-      { role: "killer", prop: "pronouns.determiner" },
+      { role: "killer", prop: "pronouns.possessive" },
       " stick, and kills ",
       { role: "victim", prop: "name" },
       " - but then falls off the tree and dies as well."
@@ -178,7 +178,7 @@ export const templates: EventTemplate[] = [
     text: [
       { role: "killer", prop: "name" },
       " tries to aggrevate hornets on a tree using ",
-      { role: "killer", prop: "pronouns.determiner" },
+      { role: "killer", prop: "pronouns.possessive" },
       " stick - killing ",
       { role: "victim", prop: "name" },
       "."
@@ -206,7 +206,7 @@ export const templates: EventTemplate[] = [
     text: [
       { role: "killer", prop: "name" },
       " tries to aggrevate hornets on a tree using ",
-      { role: "killer", prop: "pronouns.determiner" },
+      { role: "killer", prop: "pronouns.possessive" },
       " stick. the hornets don't attack but ",
       { role: "victim", prop: "name" },
       " sees."
@@ -222,7 +222,7 @@ export const templates: EventTemplate[] = [
     text: [
       { role: "victim", prop: "name" },
       " takes ",
-      { role: "victim", prop: "pronouns.determiner" },
+      { role: "victim", prop: "pronouns.possessive" },
       " own life due to stress."
     ],
     roles: ["victim"],
@@ -243,7 +243,7 @@ export const templates: EventTemplate[] = [
     text: [
       { role: "killer", prop: "name" },
       " tries to aggrevate hornets on a tree using ",
-      { role: "killer", prop: "pronouns.determiner" },
+      { role: "killer", prop: "pronouns.possessive" },
       " stick. the hornets don't attack but ",
       { role: "killer", prop: "name" },
       " falls off the tree and dies."

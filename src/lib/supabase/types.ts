@@ -1,7 +1,9 @@
 // Supabase Database Types
 
+import { Pronouns } from "../setup";
+
 export type FriendshipStatus = 'pending' | 'accepted' | 'blocked';
-export type NominationStatus = 'pending' | 'accepted' | 'rejected' | 'expired';
+export type NominationStatus = 'pending' | 'accepted' | 'rejected' | 'expired' | 'hidden';
 export type NotificationType =
   | 'friend_request'
   | 'friend_accepted'
@@ -60,6 +62,7 @@ export interface Nomination {
   tribute_image_url: string | null;
   tribute_bio: string | null;
   message: string | null;
+  income: number | null; // Income level for district suggestion/AI context
   status: NominationStatus;
   votes: number;
   created_at: string;
@@ -71,6 +74,15 @@ export interface NominationVote {
   id: string;
   nomination_id: string;
   user_id: string;
+  created_at: string;
+}
+
+export interface NominationReport {
+  id: string;
+  nomination_id: string;
+  reporter_id: string;
+  reason: 'inappropriate_content' | 'harassment' | 'spam' | 'offensive' | 'other';
+  details?: string;
   created_at: string;
 }
 
@@ -109,6 +121,8 @@ export interface Notification {
 export interface NominationWithDetails extends Nomination {
   nominator?: User;
   recipient?: User;
+  report_count?: number;
+  user_reported?: boolean;
   // Tribute data is now embedded in Nomination, no need for separate tribute field
 }
 
@@ -126,15 +140,11 @@ export interface ApiResponse<T> {
 export interface CreateNominationRequest {
   recipient_id: string;
   tribute_name: string;
-  tribute_pronouns: {
-    subject: string;
-    object: string;
-    possessive: string;
-    reflexive: string;
-  };
+  tribute_pronouns: Pronouns;
   tribute_image_url?: string;
   tribute_bio?: string;
   message?: string;
+  income?: number;
 }
 
 export interface CreateFriendRequestRequest {

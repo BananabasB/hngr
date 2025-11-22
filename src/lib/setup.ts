@@ -24,10 +24,10 @@ export type Health = {
 }
 
 export type Pronouns = {
-  subject: string;   // he / she / they
-  object: string;    // him / her / them
-  determiner: string; // his / her / their
-  pronoun: string;   // his / hers / theirs
+  subject: string;
+  object: string;
+  possessive: string;
+  reflexive: string;
 };
 
 // reusable story skeleton
@@ -78,7 +78,7 @@ export function setupDatabase() {
       const id = uuidv4();
       defaultDB.tributes[id] = {
         name: "",
-        pronouns: { subject: "", object: "", determiner: "", pronoun: "" },
+        pronouns: { subject: "", object: "", possessive: "", reflexive: "" },
         image: null,
         health: { physical: 100, mental: 100},
         foodLvl: 0,

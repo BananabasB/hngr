@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS nominations (
   tribute_image_url TEXT,
   tribute_bio TEXT,
   message TEXT,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')) DEFAULT 'pending',
+  income INTEGER, -- Income level for district suggestion/AI context
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'expired', 'hidden')) DEFAULT 'pending',
   votes INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -83,9 +84,24 @@ CREATE TABLE IF NOT EXISTS nomination_votes (
   UNIQUE(nomination_id, user_id)
 );
 
+-- Nomination reports (for community moderation)
+CREATE TABLE IF NOT EXISTS nomination_reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  nomination_id UUID NOT NULL REFERENCES nominations(id) ON DELETE CASCADE,
+  reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('inappropriate_content', 'harassment', 'spam', 'offensive', 'other')),
+  details TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(nomination_id, reporter_id)
+);
+
 -- Create index for vote lookups
 CREATE INDEX IF NOT EXISTS idx_nomination_votes_nomination_id ON nomination_votes(nomination_id);
 CREATE INDEX IF NOT EXISTS idx_nomination_votes_user_id ON nomination_votes(user_id);
+
+-- Create index for report lookups
+CREATE INDEX IF NOT EXISTS idx_nomination_reports_nomination_id ON nomination_reports(nomination_id);
+CREATE INDEX IF NOT EXISTS idx_nomination_reports_reporter_id ON nomination_reports(reporter_id);
 
 -- User games (to track which tributes are in which games)
 CREATE TABLE IF NOT EXISTS games (
@@ -208,6 +224,7 @@ ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tributes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nominations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE nomination_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nomination_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_tributes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
@@ -291,6 +308,27 @@ CREATE POLICY "Users can vote on nominations" ON nomination_votes
 
 CREATE POLICY "Users can delete their own votes" ON nomination_votes
   FOR DELETE USING (auth.uid() = user_id);
+
+-- Nomination reports: Users can report nominations they can see, view reports on their own nominations
+CREATE POLICY "Users can view reports on their nominations" ON nomination_reports
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM nominations
+      WHERE id = nomination_id AND (nominator_id = auth.uid() OR recipient_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can report nominations they can see" ON nomination_reports
+  FOR INSERT WITH CHECK (
+    auth.uid() = reporter_id AND
+    EXISTS (
+      SELECT 1 FROM nominations
+      WHERE id = nomination_id AND (nominator_id = auth.uid() OR recipient_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete their own reports" ON nomination_reports
+  FOR DELETE USING (auth.uid() = reporter_id);
 
 -- Games: Owner can manage, public games viewable by all
 CREATE POLICY "Public games are viewable by everyone" ON games
