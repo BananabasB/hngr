@@ -15,7 +15,7 @@ import { load } from "@/lib/localStorage";
 import { HngrDB } from "@/lib/setup";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { PencilLine } from "lucide-react";
+import { PencilLine, Upload } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 import { Tribute } from "@/lib/setup";
 
@@ -25,12 +25,16 @@ type Props = {
 
 export function DistrictTributes({ tributes }: Props) {
   // Get unique districts from tributes
-  const districts = Array.from(new Set(Object.values(tributes).map(t => t.district)));
+  const districts = Array.from(
+    new Set(Object.values(tributes).map((t) => t.district))
+  );
 
   return (
     <div className="flex flex-col gap-6">
       {districts.map((district) => {
-        const people = Object.values(tributes).filter(t => t.district === district);
+        const people = Object.values(tributes).filter(
+          (t) => t.district === district
+        );
         return (
           <div key={district} className="rounded p-4">
             <h2 className={`text-3xl font-bold mb-2 ${gupter.className}`}>
@@ -63,10 +67,23 @@ export function DistrictTributes({ tributes }: Props) {
                         return joined || "no pronouns";
                       }
                       // If it's an object, join subject/object/determiner/pronoun
-                      if (typeof t.pronouns === "object" && t.pronouns !== null) {
-                        const keys = ["subject", "object", "determiner", "pronoun"];
-                        const pronounsObj = t.pronouns as Record<string, string>;
-                        const values = keys.map((k) => pronounsObj[k]).filter(Boolean);
+                      if (
+                        typeof t.pronouns === "object" &&
+                        t.pronouns !== null
+                      ) {
+                        const keys = [
+                          "subject",
+                          "object",
+                          "determiner",
+                          "pronoun",
+                        ];
+                        const pronounsObj = t.pronouns as Record<
+                          string,
+                          string
+                        >;
+                        const values = keys
+                          .map((k) => pronounsObj[k])
+                          .filter(Boolean);
                         const joined = values.join("/");
                         return joined || "no pronouns";
                       }
@@ -97,7 +114,12 @@ export function EditTribute({ id }: { id: string }) {
   const initialName = tribute?.name ?? "";
   const initialImage = tribute?.image ?? "";
   // Map pronouns array/object to {subject, object, determiner, pronoun}
-  let initialPronouns = { subject: "", object: "", determiner: "", pronoun: "" };
+  let initialPronouns = {
+    subject: "",
+    object: "",
+    determiner: "",
+    pronoun: "",
+  };
   if (tribute?.pronouns) {
     if (Array.isArray(tribute.pronouns)) {
       // If it's an array, map by index
@@ -146,22 +168,45 @@ export function EditTribute({ id }: { id: string }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button><PencilLine></PencilLine>edit</Button>
+        <Button>
+          <PencilLine></PencilLine>edit
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogTitle>{`change ${singular} data`}</DialogTitle>
         <div className="gap-3 flex flex-col">
-          <div className="grid w-full max-w-sm items-center gap-3">
-            <Label htmlFor="picture">Picture</Label>
+          <div className="flex flex-col w-full items-center gap-3">
+            <Label htmlFor="picture" className="sr-only">
+              Picture
+            </Label>
+            <div
+              onClick={() => document.getElementById("picture")?.click()}
+              className="cursor-pointer relative group"
+            >
+              <Avatar className="w-32 h-32 rounded-md">
+                <AvatarImage
+                  src={draftImage || undefined}
+                  className="object-cover rounded-md w-full h-full"
+                />
+                <AvatarFallback className="w-full h-full flex items-center justify-center text-sm hover:bg-gray-100 transition">
+                  click to upload
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/50 flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center">
+                <Upload className="stroke-white" />
+                <span className="text-white text-sm text-center px-2">
+                  drag photos here or upload
+                </span>
+              </div>
+            </div>
             <Input
               id="picture"
               type="file"
-              className="w-full flex"
+              className="hidden"
               accept="image/*"
               onChange={async (e) => {
                 const file = e.target.files && e.target.files[0];
                 if (!file) return;
-                // Read file
                 const reader = new FileReader();
                 reader.onload = async (ev) => {
                   const img = new window.Image();
@@ -201,36 +246,39 @@ export function EditTribute({ id }: { id: string }) {
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             placeholder="enter a name..."
+            className={`text-center h-fit !text-5xl ${gupter.className}`}
           />
 
-          <Input
-            value={draftPronouns.subject}
-            onChange={(e) =>
-              setDraftPronouns((p) => ({ ...p, subject: e.target.value }))
-            }
-            placeholder="they"
-          />
-          <Input
-            value={draftPronouns.object}
-            onChange={(e) =>
-              setDraftPronouns((p) => ({ ...p, object: e.target.value }))
-            }
-            placeholder="them"
-          />
-          <Input
-            value={draftPronouns.determiner}
-            onChange={(e) =>
-              setDraftPronouns((p) => ({ ...p, determiner: e.target.value }))
-            }
-            placeholder="their"
-          />
-          <Input
-            value={draftPronouns.pronoun}
-            onChange={(e) =>
-              setDraftPronouns((p) => ({ ...p, pronoun: e.target.value }))
-            }
-            placeholder="theirs"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <Input
+              value={draftPronouns.subject}
+              onChange={(e) =>
+                setDraftPronouns((p) => ({ ...p, subject: e.target.value }))
+              }
+              placeholder="they"
+            />
+            <Input
+              value={draftPronouns.object}
+              onChange={(e) =>
+                setDraftPronouns((p) => ({ ...p, object: e.target.value }))
+              }
+              placeholder="them"
+            />
+            <Input
+              value={draftPronouns.determiner}
+              onChange={(e) =>
+                setDraftPronouns((p) => ({ ...p, determiner: e.target.value }))
+              }
+              placeholder="their"
+            />
+            <Input
+              value={draftPronouns.pronoun}
+              onChange={(e) =>
+                setDraftPronouns((p) => ({ ...p, pronoun: e.target.value }))
+              }
+              placeholder="theirs"
+            />
+          </div>
         </div>
         <DialogFooter>
           <DialogClose asChild>

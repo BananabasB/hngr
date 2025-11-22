@@ -19,6 +19,7 @@ import { syncUser } from '@/lib/supabase/services/users';
 import type { NominationWithDetails } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
 import { Plus, Inbox, Send } from 'lucide-react';
+import { NotAuthenticated } from '@/components/not-authenticated';
 
 export default function NominationsPage() {
   const { user, isLoaded } = useUser();
@@ -30,8 +31,13 @@ export default function NominationsPage() {
   const [voteStatuses, setVoteStatuses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (isLoaded && user) {
-      loadData();
+    if (isLoaded) {
+      if (user) {
+        loadData();
+      } else {
+        // User is not authenticated, stop loading
+        setLoading(false);
+      }
     }
   }, [isLoaded, user]);
 
@@ -94,20 +100,16 @@ export default function NominationsPage() {
     await loadData();
   };
 
-  if (!isLoaded || loading) {
+  if (!isLoaded || (user && loading)) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Loading nominations...</p>
+        <p>loading nominations...</p>
       </div>
     );
   }
 
   if (!user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>Please sign in to view nominations</p>
-      </div>
-    );
+    return <NotAuthenticated description="please sign in to view and manage your nominations" />;
   }
 
   return (
@@ -115,29 +117,29 @@ export default function NominationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Nominations</h1>
+          <h1 className="text-3xl font-bold">nominations</h1>
           <p className="text-muted-foreground">
-            Manage tribute nominations from your friends
+            manage tribute nominations from your friends
           </p>
         </div>
         <Button onClick={() => router.push('/nominate')}>
           <Plus className="mr-2 h-4 w-4" />
-          New Nomination
+          new nomination
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Pending</p>
+          <p className="text-sm text-muted-foreground">pending</p>
           <p className="text-2xl font-bold">{stats.pending}</p>
         </div>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Received</p>
+          <p className="text-sm text-muted-foreground">received</p>
           <p className="text-2xl font-bold">{stats.received}</p>
         </div>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Sent</p>
+          <p className="text-sm text-muted-foreground">sent</p>
           <p className="text-2xl font-bold">{stats.sent}</p>
         </div>
       </div>
@@ -147,11 +149,11 @@ export default function NominationsPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="received">
             <Inbox className="mr-2 h-4 w-4" />
-            Received ({receivedNominations.length})
+            received ({receivedNominations.length})
           </TabsTrigger>
           <TabsTrigger value="sent">
             <Send className="mr-2 h-4 w-4" />
-            Sent ({sentNominations.length})
+            sent ({sentNominations.length})
           </TabsTrigger>
         </TabsList>
 
@@ -159,9 +161,9 @@ export default function NominationsPage() {
           {receivedNominations.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <Inbox className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No nominations yet</h3>
+              <h3 className="mb-2 text-lg font-semibold">no nominations yet</h3>
               <p className="text-sm text-muted-foreground">
-                When your friends nominate tributes for you, they'll appear here
+                when your friends nominate tributes for you, they'll appear here
               </p>
             </div>
           ) : (
@@ -183,13 +185,13 @@ export default function NominationsPage() {
           {sentNominations.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <Send className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No nominations sent</h3>
+              <h3 className="mb-2 text-lg font-semibold">no nominations sent</h3>
               <p className="mb-4 text-sm text-muted-foreground">
-                Nominate tributes to appear in your friends' games
+                nominate tributes to appear in your friends' games
               </p>
               <Button onClick={() => router.push('/nominate')}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Nomination
+                create nomination
               </Button>
             </div>
           ) : (

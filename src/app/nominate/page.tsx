@@ -7,71 +7,81 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getFriends } from '@/lib/supabase/services/friends';
-import { getFriendTributes } from '@/lib/supabase/services/tributes';
+import { Input } from '@/components/ui/input';
 import { createNomination } from '@/lib/supabase/services/nominations';
 import { syncUser } from '@/lib/supabase/services/users';
-import type { FriendshipWithUser, Tribute } from '@/lib/supabase/types';
+import { searchUsers } from '@/lib/supabase/services/users';
+import type { User } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Users, User as UserIcon } from 'lucide-react';
+import { ArrowLeft, Send, Search, User as UserIcon } from 'lucide-react';
 
 export default function NominatePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [friends, setFriends] = useState<FriendshipWithUser[]>([]);
-  const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
-  const [friendTributes, setFriendTributes] = useState<Tribute[]>([]);
-  const [selectedTribute, setSelectedTribute] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<User | null>(null);
+  
+  // Tribute info fields
+  const [tributeName, setTributeName] = useState('');
+  const [tributePronouns, setTributePronouns] = useState({
+    subject: 'they',
+    object: 'them',
+    possessive: 'their',
+    reflexive: 'themselves',
+  });
+  const [tributeImageUrl, setTributeImageUrl] = useState('');
+  const [tributeBio, setTributeBio] = useState('');
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState(1);
 
   useEffect(() => {
     if (isLoaded && user) {
-      loadData();
+      syncUser(user);
     }
   }, [isLoaded, user]);
 
-  useEffect(() => {
-    if (selectedFriend) {
-      loadFriendTributes(selectedFriend);
+  const searchRecipients = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
     }
-  }, [selectedFriend]);
-
-  const loadData = async () => {
-    if (!user) return;
 
     setLoading(true);
     try {
-      await syncUser(user);
-      const friendsData = await getFriends(user.id);
-      setFriends(friendsData);
+      const results = await searchUsers(query, 20);
+      // Filter out current user
+      setSearchResults(results.filter((u) => u.id !== user?.id));
     } catch (error) {
-      console.error('Failed to load friends:', error);
+      console.error('Failed to search users:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadFriendTributes = async (friendId: string) => {
-    try {
-      const tributes = await getFriendTributes(friendId);
-      setFriendTributes(tributes);
-    } catch (error) {
-      console.error('Failed to load tributes:', error);
-    }
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchRecipients(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSubmit = async () => {
-    if (!user || !selectedFriend || !selectedTribute) return;
+    if (!user || !selectedRecipient || !tributeName.trim()) return;
 
     setSubmitting(true);
     try {
       await createNomination(user.id, {
-        recipient_id: selectedFriend,
-        tribute_id: selectedTribute,
-        message: message || undefined,
+        recipient_id: selectedRecipient.id,
+        tribute_name: tributeName.trim(),
+        tribute_pronouns: tributePronouns,
+        tribute_image_url: tributeImageUrl.trim() || undefined,
+        tribute_bio: tributeBio.trim() || undefined,
+        message: message.trim() || undefined,
       });
 
       router.push('/nominations');
@@ -83,10 +93,10 @@ export default function NominatePage() {
     }
   };
 
-  if (!isLoaded || loading) {
+  if (!isLoaded) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Loading...</p>
+        <p>loading...</p>
       </div>
     );
   }
@@ -94,29 +104,7 @@ export default function NominatePage() {
   if (!user) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Please sign in to nominate tributes</p>
-      </div>
-    );
-  }
-
-  if (friends.length === 0) {
-    return (
-      <div className="container mx-auto max-w-2xl space-y-6 p-6">
-        <Button variant="ghost" onClick={() => router.push('/nominations')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-          <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="mb-2 text-lg font-semibold">No friends yet</h3>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Add friends to start nominating tributes for their games
-          </p>
-          <Button onClick={() => router.push('/friends')}>
-            <Users className="mr-2 h-4 w-4" />
-            Find Friends
-          </Button>
-        </div>
+        <p>please sign in to nominate tributes</p>
       </div>
     );
   }
@@ -127,12 +115,12 @@ export default function NominatePage() {
       <div className="flex items-center gap-4">
         <Button variant="ghost" onClick={() => router.push('/nominations')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          back
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Nominate a Tribute</h1>
+          <h1 className="text-3xl font-bold">nominate a tribute</h1>
           <p className="text-muted-foreground">
-            Choose a friend and one of their tributes to nominate
+            create a nomination with tribute information
           </p>
         </div>
       </div>
@@ -150,122 +138,196 @@ export default function NominatePage() {
         />
       </div>
 
-      {/* Step 1: Select Friend */}
+      {/* Step 1: Search and Select Recipient */}
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Select a Friend</CardTitle>
+            <CardTitle>select recipient</CardTitle>
             <CardDescription>
-              Who would you like to nominate a tribute for?
+              find the person you want to nominate a tribute for
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {friends.map((friendship) => (
-              <button
-                key={friendship.id}
-                onClick={() => {
-                  setSelectedFriend(friendship.friend_id);
-                  setStep(2);
-                }}
-                className="flex w-full items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted"
-              >
-                <Avatar>
-                  <AvatarImage src={friendship.friend?.avatar_url || undefined} />
-                  <AvatarFallback>
-                    {friendship.friend?.display_name?.[0] ||
-                      friendship.friend?.username?.[0] ||
-                      '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 text-left">
-                  <p className="font-semibold">
-                    {friendship.friend?.display_name || friendship.friend?.username}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    @{friendship.friend?.username || 'unknown'}
-                  </p>
-                </div>
-              </button>
-            ))}
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="search by username or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {loading && (
+              <p className="text-center text-sm text-muted-foreground">searching...</p>
+            )}
+
+            {!loading && searchQuery && searchResults.length === 0 && (
+              <div className="rounded-lg border border-dashed p-8 text-center">
+                <UserIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">no users found</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {searchResults.map((recipient) => (
+                <button
+                  key={recipient.id}
+                  onClick={() => {
+                    setSelectedRecipient(recipient);
+                    setStep(2);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted"
+                >
+                  <Avatar>
+                    <AvatarImage src={recipient.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {recipient.display_name?.[0] || recipient.username?.[0] || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold">
+                      {recipient.display_name || recipient.username || 'unknown'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      @{recipient.username || 'unknown'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 2: Select Tribute */}
-      {step === 2 && (
+      {/* Step 2: Enter Tribute Information */}
+      {step === 2 && selectedRecipient && (
         <Card>
           <CardHeader>
-            <CardTitle>Select a Tribute</CardTitle>
+            <CardTitle>tribute information</CardTitle>
             <CardDescription>
-              Choose one of{' '}
-              {friends.find((f) => f.friend_id === selectedFriend)?.friend
-                ?.display_name || "your friend's"}{' '}
-              tributes
+              enter details about the tribute you're nominating for @{selectedRecipient.username}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {friendTributes.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center">
-                <UserIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  This friend has no tributes yet
-                </p>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tribute-name">tribute name *</Label>
+              <Input
+                id="tribute-name"
+                placeholder="enter tribute name"
+                value={tributeName}
+                onChange={(e) => setTributeName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pronoun-subject">subject pronoun</Label>
+                <Input
+                  id="pronoun-subject"
+                  placeholder="they"
+                  value={tributePronouns.subject}
+                  onChange={(e) =>
+                    setTributePronouns({ ...tributePronouns, subject: e.target.value })
+                  }
+                />
               </div>
-            ) : (
-              friendTributes.map((tribute) => (
-                <button
-                  key={tribute.id}
-                  onClick={() => {
-                    setSelectedTribute(tribute.id);
-                    setStep(3);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted"
-                >
-                  {tribute.image_url && (
-                    <Avatar>
-                      <AvatarImage src={tribute.image_url} />
-                      <AvatarFallback>{tribute.name[0]}</AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className="flex-1 text-left">
-                    <p className="font-semibold">{tribute.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {tribute.pronouns.subject}/{tribute.pronouns.object}
-                    </p>
-                  </div>
-                </button>
-              ))
-            )}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStep(1);
-                setSelectedFriend(null);
-                setSelectedTribute(null);
-              }}
-              className="mt-4 w-full"
-            >
-              Choose Different Friend
-            </Button>
+              <div className="space-y-2">
+                <Label htmlFor="pronoun-object">object pronoun</Label>
+                <Input
+                  id="pronoun-object"
+                  placeholder="them"
+                  value={tributePronouns.object}
+                  onChange={(e) =>
+                    setTributePronouns({ ...tributePronouns, object: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pronoun-possessive">possessive pronoun</Label>
+                <Input
+                  id="pronoun-possessive"
+                  placeholder="their"
+                  value={tributePronouns.possessive}
+                  onChange={(e) =>
+                    setTributePronouns({ ...tributePronouns, possessive: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pronoun-reflexive">reflexive pronoun</Label>
+                <Input
+                  id="pronoun-reflexive"
+                  placeholder="themselves"
+                  value={tributePronouns.reflexive}
+                  onChange={(e) =>
+                    setTributePronouns({ ...tributePronouns, reflexive: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tribute-image">image url (optional)</Label>
+              <Input
+                id="tribute-image"
+                placeholder="https://example.com/image.jpg"
+                value={tributeImageUrl}
+                onChange={(e) => setTributeImageUrl(e.target.value)}
+                type="url"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tribute-bio">bio (optional)</Label>
+              <Textarea
+                id="tribute-bio"
+                placeholder="a brief description of the tribute"
+                value={tributeBio}
+                onChange={(e) => setTributeBio(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStep(1);
+                  setSelectedRecipient(null);
+                }}
+                className="flex-1"
+              >
+                back
+              </Button>
+              <Button
+                onClick={() => setStep(3)}
+                disabled={!tributeName.trim()}
+                className="flex-1"
+              >
+                next
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
 
       {/* Step 3: Add Message and Submit */}
-      {step === 3 && (
+      {step === 3 && selectedRecipient && (
         <Card>
           <CardHeader>
-            <CardTitle>Add a Message (Optional)</CardTitle>
+            <CardTitle>add a message (optional)</CardTitle>
             <CardDescription>
-              Include a message with your nomination
+              nominating {tributeName} for @{selectedRecipient.username}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="message">Message</Label>
+              <Label htmlFor="message">message</Label>
               <Textarea
                 id="message"
-                placeholder="Why are you nominating this tribute?"
+                placeholder="why are you nominating this tribute?"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
@@ -275,21 +337,18 @@ export default function NominatePage() {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setStep(2);
-                  setSelectedTribute(null);
-                }}
+                onClick={() => setStep(2)}
                 className="flex-1"
               >
-                Back
+                back
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !tributeName.trim()}
                 className="flex-1"
               >
                 <Send className="mr-2 h-4 w-4" />
-                {submitting ? 'Sending...' : 'Send Nomination'}
+                {submitting ? 'sending...' : 'send nomination'}
               </Button>
             </div>
           </CardContent>

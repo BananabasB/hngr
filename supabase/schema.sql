@@ -50,11 +50,16 @@ CREATE INDEX IF NOT EXISTS idx_tributes_owner_id ON tributes(owner_id);
 CREATE INDEX IF NOT EXISTS idx_tributes_is_public ON tributes(is_public);
 
 -- Nominations table
+-- Nominations now contain tribute info directly (provided by nominator)
+-- This makes nominations self-contained polls that don't require a tribute to exist
 CREATE TABLE IF NOT EXISTS nominations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nominator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  tribute_id UUID NOT NULL REFERENCES tributes(id) ON DELETE CASCADE,
+  tribute_name TEXT NOT NULL,
+  tribute_pronouns JSONB NOT NULL DEFAULT '{"subject": "they", "object": "them", "possessive": "their", "reflexive": "themselves"}',
+  tribute_image_url TEXT,
+  tribute_bio TEXT,
   message TEXT,
   status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')) DEFAULT 'pending',
   votes INTEGER DEFAULT 0,
@@ -67,7 +72,6 @@ CREATE TABLE IF NOT EXISTS nominations (
 -- Create indexes for nomination queries
 CREATE INDEX IF NOT EXISTS idx_nominations_nominator_id ON nominations(nominator_id);
 CREATE INDEX IF NOT EXISTS idx_nominations_recipient_id ON nominations(recipient_id);
-CREATE INDEX IF NOT EXISTS idx_nominations_tribute_id ON nominations(tribute_id);
 CREATE INDEX IF NOT EXISTS idx_nominations_status ON nominations(status);
 
 -- Nomination votes (for voting system)
@@ -264,11 +268,7 @@ CREATE POLICY "Users can view nominations they received" ON nominations
 
 CREATE POLICY "Users can create nominations to friends" ON nominations
   FOR INSERT WITH CHECK (
-    auth.uid() = nominator_id AND
-    EXISTS (
-      SELECT 1 FROM friendships
-      WHERE user_id = auth.uid() AND friend_id = recipient_id AND status = 'accepted'
-    )
+    auth.uid() = nominator_id
   );
 
 CREATE POLICY "Recipients can update nomination status" ON nominations
@@ -356,11 +356,8 @@ SELECT
   u1.username as nominator_username,
   u1.display_name as nominator_display_name,
   u2.username as recipient_username,
-  u2.display_name as recipient_display_name,
-  t.name as tribute_name,
-  t.image_url as tribute_image_url
+  u2.display_name as recipient_display_name
 FROM nominations n
 JOIN users u1 ON n.nominator_id = u1.id
 JOIN users u2 ON n.recipient_id = u2.id
-JOIN tributes t ON n.tribute_id = t.id
 WHERE n.status = 'pending';

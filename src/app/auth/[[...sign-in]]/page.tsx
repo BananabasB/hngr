@@ -1,5 +1,6 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,8 @@ import { Google } from "@/components/ui/svgs/google";
 import { cn } from "@/lib/utils";
 import * as Clerk from "@clerk/elements/common";
 import * as SignIn from "@clerk/elements/sign-in";
-import { BowArrow, MailOpen } from "lucide-react";
+import { table } from "console";
+import { BowArrow, KeyRound, MailOpen } from "lucide-react";
 import { Gupter, Roboto } from "next/font/google";
 import { useState, useEffect } from "react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
@@ -59,7 +61,7 @@ function EmailProviderButton({ email }: { email: string | null }) {
   if (!provider) return null;
 
   return (
-    <Button asChild variant="link" className="mb-4 w-full">
+    <Button asChild variant="outline" className="mb-4 w-full">
       <a href={provider.url} target="_blank" rel="noopener noreferrer">
         open {provider.name}
       </a>
@@ -73,14 +75,17 @@ export default function SignInPage() {
   return (
     <div className="flex flex-col  gap-5 min-h-screen items-center text-center justify-center">
       <SignIn.Root>
+        <div className="max-w-100 gap-5 flex flex-col">
         <SignIn.Step name="start">
-          <div className="flex w-100 flex-col gap-6">
+          <div className="flex w-full max-w-md mx-auto flex-col gap-6">
             <div className="gap-2">
               <div className="mx-auto flex size-8 items-center justify-center rounded-md">
                 <BowArrow className="size-6" />
               </div>
               <span className="sr-only">hngr</span>
-              <h1 className={`text-3xl ${gupter.className}`}>sign in or sign up</h1>
+              <h1 className={`text-3xl ${gupter.className}`}>
+                sign in or sign up
+              </h1>
               <p className="text-sm text-muted-foreground">
                 we'll check if you have an account with us, and create one if
                 you don't.
@@ -119,6 +124,16 @@ export default function SignInPage() {
                 send me a code
               </Button>
             </SignIn.Action>
+            <div className="flex items-center w-full justify-center gap-2">
+              <Alert className="text-start">
+                <KeyRound />
+                <AlertTitle>we're passwordless</AlertTitle>
+                <AlertDescription>
+                  passwords are a hassle and make using websites a mess. that's why hngr
+                  doesn't use passwords.
+                </AlertDescription>
+              </Alert>
+            </div>
           </div>
         </SignIn.Step>
         <SignIn.Step name="verifications">
@@ -136,31 +151,31 @@ export default function SignInPage() {
                   <Label>email code</Label>
                 </Clerk.Label>
                 <Clerk.Input
-                              type="otp"
-                              className="flex min-w-full justify-center has-[:disabled]:opacity-50"
-                              autoSubmit
-                              render={({ value, status }) => {
-                                return (
-                                  <div
-                                    data-status={status}
-                                    className={cn(
-                                      'relative flex w-full h-20 text-2xl  items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md',
-                                      {
-                                        'z-10 ring-2 ring-ring ring-offset-background':
-                                          status === 'cursor' || status === 'selected',
-                                      },
-                                    )}
-                                  >
-                                    {value}
-                                    {status === 'cursor' && (
-                                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                        <div className="animate-caret-blink h-4 w-px duration-1000" />
-                                      </div>
-                                    )}
-                                  </div>
-                                )
-                              }}
-                            />
+                  type="otp"
+                  className="flex min-w-full justify-center has-[:disabled]:opacity-50"
+                  autoSubmit
+                  render={({ value, status }) => {
+                    return (
+                      <div
+                        data-status={status}
+                        className={cn(
+                          "relative flex w-full h-20 text-2xl  items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+                          {
+                            "z-10 ring-2 ring-ring ring-offset-background":
+                              status === "cursor" || status === "selected",
+                          }
+                        )}
+                      >
+                        {value}
+                        {status === "cursor" && (
+                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                            <div className="animate-caret-blink h-4 w-px duration-1000" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
                 <Clerk.FieldError />
               </Clerk.Field>
 
@@ -168,14 +183,18 @@ export default function SignInPage() {
                 <Button>continue</Button>
               </SignIn.Action>
             </SignIn.Strategy>
+            
           </div>
         </SignIn.Step>
+        
+            </div>
       </SignIn.Root>
-      <div className="flex items-center content-center gap-2">
+
+      <div className="flex items-center justify-center gap-2">
         <p className="text-muted-foreground text-sm">secured by</p>
-        <a href="https://go.clerk.com/components">
+        <a href="https://go.clerk.com/components" className="flex items-center">
           <ClerkWordmarkDark className="hidden dark:inline h-4" />
-        <ClerkWordmarkLight className="inline dark:hidden h-4" />
+          <ClerkWordmarkLight className="inline dark:hidden h-4" />
         </a>
       </div>
     </div>

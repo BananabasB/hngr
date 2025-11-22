@@ -20,6 +20,7 @@ import {
 import { syncUser } from '@/lib/supabase/services/users';
 import type { FriendshipWithUser } from '@/lib/supabase/types';
 import { Users, UserPlus, Check, X, Trash2 } from 'lucide-react';
+import { NotAuthenticated } from '@/components/not-authenticated';
 
 export default function FriendsPage() {
   const { user, isLoaded } = useUser();
@@ -31,8 +32,13 @@ export default function FriendsPage() {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      loadData();
+    if (isLoaded) {
+      if (user) {
+        loadData();
+      } else {
+        // User is not authenticated, stop loading
+        setLoading(false);
+      }
     }
   }, [isLoaded, user]);
 
@@ -106,28 +112,24 @@ export default function FriendsPage() {
     }
   };
 
-  if (!isLoaded || loading) {
+  if (!isLoaded || (user && loading)) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>Loading friends...</p>
+        <p>loading friends...</p>
       </div>
     );
   }
 
   if (!user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>Please sign in to view friends</p>
-      </div>
-    );
+    return <NotAuthenticated description="please sign in to view and manage your friends" />;
   }
 
   return (
     <div className="container mx-auto max-w-4xl space-y-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Friends</h1>
-        <p className="text-muted-foreground">Manage your friend connections</p>
+        <h1 className="text-3xl font-bold">friends</h1>
+        <p className="text-muted-foreground">manage your friend connections</p>
       </div>
 
       {/* Add Friend Card */}
@@ -135,23 +137,23 @@ export default function FriendsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Add Friend
+            add friend
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSendRequest} className="flex gap-2">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="friend">Username or Email</Label>
+              <Label htmlFor="friend">username or email</Label>
               <Input
                 id="friend"
-                placeholder="Enter username or email"
+                placeholder="enter username or email"
                 value={friendIdentifier}
                 onChange={(e) => setFriendIdentifier(e.target.value)}
               />
             </div>
             <Button type="submit" disabled={sending} className="self-end">
               <UserPlus className="mr-2 h-4 w-4" />
-              {sending ? 'Sending...' : 'Send Request'}
+              {sending ? 'sending...' : 'send request'}
             </Button>
           </form>
         </CardContent>
@@ -160,15 +162,15 @@ export default function FriendsPage() {
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Friends</p>
+          <p className="text-sm text-muted-foreground">friends</p>
           <p className="text-2xl font-bold">{friends.length}</p>
         </div>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Pending Requests</p>
+          <p className="text-sm text-muted-foreground">pending requests</p>
           <p className="text-2xl font-bold">{pendingRequests.length}</p>
         </div>
         <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Sent Requests</p>
+          <p className="text-sm text-muted-foreground">sent requests</p>
           <p className="text-2xl font-bold">{sentRequests.length}</p>
         </div>
       </div>
@@ -194,9 +196,9 @@ export default function FriendsPage() {
           {friends.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No friends yet</h3>
+              <h3 className="mb-2 text-lg font-semibold">no friends yet</h3>
               <p className="text-sm text-muted-foreground">
-                Add friends to start nominating tributes
+                add friends to start nominating tributes
               </p>
             </div>
           ) : (
@@ -237,9 +239,9 @@ export default function FriendsPage() {
           {pendingRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <Check className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No pending requests</h3>
+              <h3 className="mb-2 text-lg font-semibold">no pending requests</h3>
               <p className="text-sm text-muted-foreground">
-                Friend requests will appear here
+                friend requests will appear here
               </p>
             </div>
           ) : (
@@ -290,9 +292,9 @@ export default function FriendsPage() {
           {sentRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <UserPlus className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No sent requests</h3>
+              <h3 className="mb-2 text-lg font-semibold">no sent requests</h3>
               <p className="text-sm text-muted-foreground">
-                Sent friend requests will appear here
+                sent friend requests will appear here
               </p>
             </div>
           ) : (

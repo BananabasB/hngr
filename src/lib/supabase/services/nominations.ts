@@ -4,38 +4,45 @@ import { areFriends } from './friends';
 
 /**
  * Create a nomination
+ * Tribute info is provided by the nominator, making nominations self-contained polls
  */
 export async function createNomination(
   userId: string,
-  request: CreateNominationRequest
+  request: CreateNominationRequest,
+  requireFriendship = false // optional: set to true to require friendship
 ) {
-  // Verify they are friends
-  const friends = await areFriends(userId, request.recipient_id);
-  if (!friends) {
-    throw new Error('You can only nominate tributes to your friends');
+  // Optionally verify they are friends
+  if (requireFriendship) {
+    const friends = await areFriends(userId, request.recipient_id);
+    if (!friends) {
+      throw new Error('you can only nominate tributes to your friends');
+    }
   }
 
-  // Check if this tribute has already been nominated to this recipient
+  // Check if this exact tribute (by name) has already been nominated to this recipient
   const { data: existing } = await supabase
     .from('nominations')
     .select('*')
     .eq('nominator_id', userId)
     .eq('recipient_id', request.recipient_id)
-    .eq('tribute_id', request.tribute_id)
+    .eq('tribute_name', request.tribute_name)
     .eq('status', 'pending')
     .single();
 
   if (existing) {
-    throw new Error('You have already nominated this tribute to this friend');
+    throw new Error('you have already nominated this tribute to this user');
   }
 
-  // Create the nomination
+  // Create the nomination with embedded tribute data
   const { data, error } = await supabase
     .from('nominations')
     .insert({
       nominator_id: userId,
       recipient_id: request.recipient_id,
-      tribute_id: request.tribute_id,
+      tribute_name: request.tribute_name,
+      tribute_pronouns: request.tribute_pronouns,
+      tribute_image_url: request.tribute_image_url || null,
+      tribute_bio: request.tribute_bio || null,
       message: request.message || null,
       status: 'pending',
       votes: 0,
@@ -49,8 +56,8 @@ export async function createNomination(
   await supabase.from('notifications').insert({
     user_id: request.recipient_id,
     type: 'nomination_received',
-    title: 'New tribute nomination',
-    message: `You received a new tribute nomination`,
+    title: 'new tribute nomination',
+    message: `you received a new tribute nomination`,
     link: '/nominations',
   });
 
@@ -71,13 +78,6 @@ export async function getSentNominations(userId: string): Promise<NominationWith
         username,
         display_name,
         avatar_url
-      ),
-      tribute:tribute_id (
-        id,
-        name,
-        pronouns,
-        image_url,
-        bio
       )
     `
     )
@@ -102,14 +102,6 @@ export async function getReceivedNominations(userId: string): Promise<Nomination
         username,
         display_name,
         avatar_url
-      ),
-      tribute:tribute_id (
-        id,
-        name,
-        pronouns,
-        image_url,
-        bio,
-        owner_id
       )
     `
     )
@@ -134,14 +126,6 @@ export async function getPendingNominations(userId: string): Promise<NominationW
         username,
         display_name,
         avatar_url
-      ),
-      tribute:tribute_id (
-        id,
-        name,
-        pronouns,
-        image_url,
-        bio,
-        owner_id
       )
     `
     )
@@ -175,8 +159,8 @@ export async function acceptNomination(nominationId: string, userId: string) {
   await supabase.from('notifications').insert({
     user_id: nomination.nominator_id,
     type: 'nomination_accepted',
-    title: 'Nomination accepted',
-    message: `Your nomination was accepted!`,
+    title: 'nomination accepted',
+    message: `your nomination was accepted!`,
     link: '/nominations',
   });
 
@@ -204,8 +188,8 @@ export async function rejectNomination(nominationId: string, userId: string) {
   await supabase.from('notifications').insert({
     user_id: nomination.nominator_id,
     type: 'nomination_rejected',
-    title: 'Nomination declined',
-    message: `Your nomination was declined`,
+    title: 'nomination declined',
+    message: `your nomination was declined`,
     link: '/nominations',
   });
 

@@ -50,7 +50,15 @@ export interface Nomination {
   id: string;
   nominator_id: string;
   recipient_id: string;
-  tribute_id: string;
+  tribute_name: string;
+  tribute_pronouns: {
+    subject: string;
+    object: string;
+    possessive: string;
+    reflexive: string;
+  };
+  tribute_image_url: string | null;
+  tribute_bio: string | null;
   message: string | null;
   status: NominationStatus;
   votes: number;
@@ -101,7 +109,7 @@ export interface Notification {
 export interface NominationWithDetails extends Nomination {
   nominator?: User;
   recipient?: User;
-  tribute?: Tribute;
+  // Tribute data is now embedded in Nomination, no need for separate tribute field
 }
 
 export interface FriendshipWithUser extends Friendship {
@@ -117,7 +125,15 @@ export interface ApiResponse<T> {
 // Request types
 export interface CreateNominationRequest {
   recipient_id: string;
-  tribute_id: string;
+  tribute_name: string;
+  tribute_pronouns: {
+    subject: string;
+    object: string;
+    possessive: string;
+    reflexive: string;
+  };
+  tribute_image_url?: string;
+  tribute_bio?: string;
   message?: string;
 }
 

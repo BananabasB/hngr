@@ -38,7 +38,6 @@ export function NominationCard({
   const [voted, setVoted] = useState(hasVoted);
 
   const user = type === 'received' ? nomination.nominator : nomination.recipient;
-  const tribute = nomination.tribute;
 
   const handleAction = async (action: () => Promise<void>) => {
     setLoading(true);
@@ -63,13 +62,13 @@ export function NominationCard({
   const getStatusBadge = () => {
     switch (nomination.status) {
       case 'accepted':
-        return <Badge className="bg-green-500">Accepted</Badge>;
+        return <Badge className="bg-green-500">accepted</Badge>;
       case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
+        return <Badge variant="destructive">rejected</Badge>;
       case 'expired':
-        return <Badge variant="secondary">Expired</Badge>;
+        return <Badge variant="secondary">expired</Badge>;
       default:
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge variant="outline">pending</Badge>;
     }
   };
 
@@ -86,8 +85,8 @@ export function NominationCard({
             </Avatar>
             <div>
               <CardTitle className="text-base">
-                {type === 'received' ? 'From' : 'To'}{' '}
-                {user?.display_name || user?.username || 'Unknown'}
+                {type === 'received' ? 'from' : 'to'}{' '}
+                {user?.display_name || user?.username || 'unknown'}
               </CardTitle>
               <CardDescription>
                 {new Date(nomination.created_at).toLocaleDateString()}
@@ -101,19 +100,22 @@ export function NominationCard({
       <CardContent className="space-y-4">
         {/* Tribute Info */}
         <div className="flex items-center gap-3 rounded-lg border p-3">
-          {tribute?.image_url && (
+          {nomination.tribute_image_url && (
             <Avatar className="h-12 w-12">
-              <AvatarImage src={tribute.image_url} />
-              <AvatarFallback>{tribute.name[0]}</AvatarFallback>
+              <AvatarImage src={nomination.tribute_image_url} />
+              <AvatarFallback>{nomination.tribute_name[0]}</AvatarFallback>
             </Avatar>
           )}
           <div className="flex-1">
-            <p className="font-semibold">{tribute?.name || 'Unknown Tribute'}</p>
+            <p className="font-semibold">{nomination.tribute_name || 'unknown tribute'}</p>
             <p className="text-sm text-muted-foreground">
-              {tribute?.pronouns
-                ? `${tribute.pronouns.subject}/${tribute.pronouns.object}`
+              {nomination.tribute_pronouns
+                ? `${nomination.tribute_pronouns.subject}/${nomination.tribute_pronouns.object}`
                 : ''}
             </p>
+            {nomination.tribute_bio && (
+              <p className="mt-1 text-sm text-muted-foreground">{nomination.tribute_bio}</p>
+            )}
           </div>
         </div>
 
@@ -152,7 +154,7 @@ export function NominationCard({
                 className="flex-1"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Accept
+                accept
               </Button>
               <Button
                 variant="outline"
@@ -161,7 +163,7 @@ export function NominationCard({
                 className="flex-1"
               >
                 <XCircle className="mr-2 h-4 w-4" />
-                Decline
+                decline
               </Button>
             </>
           )}
@@ -174,7 +176,7 @@ export function NominationCard({
               className="w-full"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Cancel Nomination
+              cancel nomination
             </Button>
           )}
         </CardFooter>

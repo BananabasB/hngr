@@ -9,11 +9,11 @@ export async function sendFriendRequest(userId: string, friendIdentifier: string
   // Find the friend by username or email
   const friend = await findUserByIdentifier(friendIdentifier);
   if (!friend) {
-    throw new Error('User not found');
+    throw new Error('user not found');
   }
 
   if (friend.id === userId) {
-    throw new Error('Cannot send friend request to yourself');
+    throw new Error('cannot send friend request to yourself');
   }
 
   // Check if friendship already exists
@@ -25,7 +25,7 @@ export async function sendFriendRequest(userId: string, friendIdentifier: string
     .single();
 
   if (existing) {
-    throw new Error('Friend request already sent');
+    throw new Error('friend request already sent');
   }
 
   // Create the friend request
@@ -45,8 +45,8 @@ export async function sendFriendRequest(userId: string, friendIdentifier: string
   await supabase.from('notifications').insert({
     user_id: friend.id,
     type: 'friend_request',
-    title: 'New friend request',
-    message: `You have a new friend request`,
+    title: 'new friend request',
+    message: `you have a new friend request`,
     link: '/friends',
   });
 
@@ -75,8 +75,8 @@ export async function acceptFriendRequest(friendshipId: string, userId: string) 
   await supabase.from('notifications').insert({
     user_id: friendship.user_id,
     type: 'friend_accepted',
-    title: 'Friend request accepted',
-    message: `Your friend request was accepted`,
+    title: 'friend request accepted',
+    message: `your friend request was accepted`,
     link: '/friends',
   });
 
