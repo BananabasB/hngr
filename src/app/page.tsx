@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { setupDatabase } from "@/lib/setup";
+import React, { useState } from "react";
 import { Gupter } from "next/font/google";
-import { load, updateReferralName } from "@/lib/localStorage";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,28 +12,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { DistrictTributes } from "@/components/district-tributes";
+import { useAppState } from "@/lib/state-context";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 export default function Home() {
-  const [db, setDb] = useState<any>(null);
+  const { db, updateReferralName } = useAppState();
   const [referralKey, setReferralKey] = useState("tributes");
 
-  useEffect(() => {
-    const database = setupDatabase();
-    setDb(database);
-    if (database?.tributeReferralName?.plural) {
-      // figure out which key matches the current db
-      if (database.tributeReferralName.plural === "volunteers") {
+  // Update referral key when db changes
+  React.useEffect(() => {
+    if (db?.tributeReferralName?.plural) {
+      if (db.tributeReferralName.plural === "volunteers") {
         setReferralKey("volunteers");
-      } else if (database.tributeReferralName.plural === "nominees") {
+      } else if (db.tributeReferralName.plural === "nominees") {
         setReferralKey("nominees");
       } else {
         setReferralKey("tributes");
       }
     }
-    console.log("hngr db", database);
-  }, []);
+  }, [db]);
 
 const handleChange = (value: string) => {
   if (
@@ -44,8 +40,7 @@ const handleChange = (value: string) => {
     value === "nominees"
   ) {
     setReferralKey(value);
-    const updated = updateReferralName(db, value);
-    setDb(updated);
+    updateReferralName(value);
   }
 };
 
@@ -56,7 +51,7 @@ const handleChange = (value: string) => {
       </div>
       <div className="text-center flex flex-col p-3 justify-center gap-2">
         <div className="flex w-full  items-center content-center justify-center gap-2">
-          <p>people that participate are called: </p>
+          <p>people that participate are called:</p>
           <DropdownMenu>
             <DropdownMenuTrigger className="flex cursor-pointer flex-row gap-2">
               {db ? db.tributeReferralName.plural : "loading..."}

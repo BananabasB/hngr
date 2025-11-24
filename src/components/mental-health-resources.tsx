@@ -82,7 +82,7 @@ const ResourcesContent = ({ guidance }: { guidance: ResourceGuidance }) => (
         {guidance.message}
         {guidance.urgent && (
           <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm">
-            <strong>⚠️ If this is an emergency:</strong> Please call emergency services (911) immediately.
+            <strong>⚠️ If this is an emergency:</strong> Please call emergency services (usually 999, 112 or 911) immediately.
           </div>
         )}
       </AlertDescription>

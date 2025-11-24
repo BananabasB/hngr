@@ -10,7 +10,7 @@ export async function fetchBefriendersHotlines(countryCode: string = 'GB'): Prom
     const countryResponse = await fetch(`https://findahelpline.com/api/countries/${countryCode}`, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'HungerGamesApp/1.0'
+        'User-Agent': 'CommunityApp/1.0'
       }
     });
 

@@ -22,6 +22,7 @@ import {
   Users,
   Heart,
   BadgeCheck,
+  Smartphone,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {

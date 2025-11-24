@@ -15,8 +15,11 @@ import {
   Image as ImageIcon,
   Loader2,
   Sun,
-  Moon
+  Moon,
+  Smartphone
 } from "lucide-react";
+import { DeviceSyncDialog } from "@/components/device-sync/device-sync-dialog";
+import { useAppState } from "@/lib/state-context";
 import {
   Select,
   SelectContent,
@@ -24,25 +27,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// @ts-ignore - dom-to-image-more doesn't have TypeScript definitions
-import domtoimage from "dom-to-image-more";
+// Dynamic import for dom-to-image-more to avoid Node.js runtime errors
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const ibmMono = IBM_Plex_Mono({ weight: ["400", "500", "700"], subsets: ["latin"] });
 
 export default function SharePage() {
-  const [db, setDb] = useState<HngrDB | null>(null);
+  const { db, setDb } = useAppState();
   const [copied, setCopied] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const [exportTheme, setExportTheme] = useState<"light" | "dark">("light");
   const [selectedDay, setSelectedDay] = useState<string>("");
   const dayRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
-
-  useEffect(() => {
-    const database = setupDatabase();
-    setDb(database);
-  }, []);
 
   const exportData = () => {
     if (!db) return;
@@ -113,6 +110,10 @@ export default function SharePage() {
     if (!element) return;
 
     try {
+      // Dynamically import dom-to-image-more to avoid Node.js runtime errors
+      // @ts-ignore - dom-to-image-more doesn't have TypeScript definitions
+      const domtoimage = (await import("dom-to-image-more")).default;
+
       // Use dom-to-image-more with filter to remove problematic styles
       const blob = await domtoimage.toBlob(element, {
         width: 800 * 2,
@@ -166,9 +167,29 @@ export default function SharePage() {
       </div>
 
       <div className="text-center flex flex-col p-6 justify-center gap-6 max-w-2xl mx-auto w-full">
+        {/* Device Sync */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Smartphone className="w-5 h-5" />
+            <h2 className="text-xl font-semibold">device sync</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-6">
+            transfer your data between devices seamlessly
+          </p>
+          <DeviceSyncDialog
+            currentState={db}
+            onStateReceived={setDb}
+          >
+            <Button className="w-full gap-2">
+              <Smartphone className="w-4 h-4" />
+              sync devices
+            </Button>
+          </DeviceSyncDialog>
+        </Card>
+
         {/* Data Overview */}
         <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">your data</h2>
+          <h2 className="text-2xl font-semibold">your data</h2>
           {db ? (
             <div className="grid grid-cols-2 gap-4 text-left">
               <div className="flex flex-col gap-1">

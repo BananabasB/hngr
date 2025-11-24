@@ -37,8 +37,7 @@ function shuffleArray<T>(arr: T[]) {
 }
 
 export default function EventTimeline({ data }: Props) {
-  // prefer any here because loadGame returns a nested object keyed by day
-  const [eventsByDay, setEventsByDay] = useState<any>(() => {
+  const [eventsByDay, setEventsByDay] = useState<Record<number, import('@/lib/setup').Event[]>>(() => {
     // initialize with a fresh simulation run (ignore any saved hngrDb in localStorage)
     return simulateGame(data);
   });
@@ -201,7 +200,7 @@ export default function EventTimeline({ data }: Props) {
             day {day}
           </h2>
 
-          {events.map((event: any, idx: number) => (
+          {events.map((event: import('@/lib/setup').Event, idx: number) => (
             <div key={idx} className="flex flex-col items-center gap-2">
               {/* tribute avatars */}
               <div className="flex flex-wrap justify-center gap-2">
