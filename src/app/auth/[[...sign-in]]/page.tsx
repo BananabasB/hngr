@@ -162,31 +162,31 @@ export default function SignInPage() {
                   you don't.
                 </p>
               </div>
-              <Button
-                asChild
-                className={`w-full rounded-full ${roboto.className} font-medium`}
-                variant="outline"
-              >
-                <Clerk.Connection
-                  name="google"
-                  className="flex w-full items-center justify-center gap-2"
-                  onClick={handleGoogleClick}
+              <div className="relative">
+                <Button
+                  asChild
+                  className={`w-full rounded-full ${roboto.className} font-medium`}
+                  variant="outline"
                 >
-                  <Google className="size-5 flex-none" />
-                  <span className="flex-1 text-center flex items-center justify-center gap-2">
-                    Continue with Google
-                    {lastMethod === "google" && (
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase font-semibold"
-                      >
-                        last used
-                      </Badge>
-                    )}
-                  </span>
-                </Clerk.Connection>
-              </Button>
-              <FieldSeparator>or</FieldSeparator>
+                  <Clerk.Connection
+                    name="google"
+                    className="flex w-full items-center justify-center gap-2"
+                  >
+                    <Google className="size-5 flex-none" />
+                    <span className="flex-1 text-center flex items-center justify-center gap-2">
+                      Continue with Google
+                    </span>
+                  </Clerk.Connection>
+                </Button>
+                {lastMethod === "google" && (
+                  <Badge
+                    variant="secondary"
+                    className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
+                  >
+                    last used
+                  </Badge>
+                )}
+              </div>
               <Clerk.Field name="identifier" className="gap-2 flex flex-col">
                 <div className="flex items-center justify-between text-left">
                   <Label asChild>
