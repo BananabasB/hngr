@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarWithPlus } from '@/components/ui/avatar-with-plus';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   getFriends,
@@ -207,14 +208,14 @@ export default function FriendsPage() {
                 key={friendship.id}
                 className="flex items-center gap-3 rounded-lg border p-4"
               >
-                <Avatar>
+                <AvatarWithPlus isPlus={friendship.friend?.is_plus || false}>
                   <AvatarImage src={friendship.friend?.avatar_url || undefined} />
                   <AvatarFallback>
                     {friendship.friend?.display_name?.[0] ||
                       friendship.friend?.username?.[0] ||
                       '?'}
                   </AvatarFallback>
-                </Avatar>
+                </AvatarWithPlus>
                 <div className="flex-1">
                   <p className="font-semibold">
                     {friendship.friend?.display_name || friendship.friend?.username}
@@ -250,14 +251,14 @@ export default function FriendsPage() {
                 key={friendship.id}
                 className="flex items-center gap-3 rounded-lg border p-4"
               >
-                <Avatar>
+                <AvatarWithPlus isPlus={friendship.friend?.is_plus || false}>
                   <AvatarImage src={friendship.friend?.avatar_url || undefined} />
                   <AvatarFallback>
                     {friendship.friend?.display_name?.[0] ||
                       friendship.friend?.username?.[0] ||
                       '?'}
                   </AvatarFallback>
-                </Avatar>
+                </AvatarWithPlus>
                 <div className="flex-1">
                   <p className="font-semibold">
                     {friendship.friend?.display_name || friendship.friend?.username}
@@ -303,14 +304,14 @@ export default function FriendsPage() {
                 key={friendship.id}
                 className="flex items-center gap-3 rounded-lg border p-4"
               >
-                <Avatar>
+                <AvatarWithPlus isPlus={friendship.friend?.is_plus || false}>
                   <AvatarImage src={friendship.friend?.avatar_url || undefined} />
                   <AvatarFallback>
                     {friendship.friend?.display_name?.[0] ||
                       friendship.friend?.username?.[0] ||
                       '?'}
                   </AvatarFallback>
-                </Avatar>
+                </AvatarWithPlus>
                 <div className="flex-1">
                   <p className="font-semibold">
                     {friendship.friend?.display_name || friendship.friend?.username}

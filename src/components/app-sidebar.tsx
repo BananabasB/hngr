@@ -7,7 +7,7 @@ import {
   Bot,
   BowArrow,
   Building2,
-  Calendar,
+  Calendar as CalendarIcon,
   Command,
   Frame,
   GalleryVerticalEnd,
@@ -23,6 +23,8 @@ import {
   Heart,
   BadgeCheck,
   Smartphone,
+  CirclePlus,
+  Calendar,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -39,6 +41,7 @@ import {
 } from "@/components/ui/sidebar";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
+import { SidebarUser } from "./sidebar-user";
 
 const header = {
   items: [
@@ -54,11 +57,14 @@ const header = {
 const data = {
   items: [
     { title: "districts", url: "/", icon: Building2 },
-    { title: "timeline", url: "/timeline", icon: Calendar },
+    { title: "timeline", url: "/timeline", icon: CalendarIcon },
     { title: "friends", url: "/friends", icon: Users },
+    { title: "events", url: "/events", icon: Calendar },
     { title: "nominations", url: "/nominations", icon: BadgeCheck },
+    { title: "hngr+", url: "/plus", icon: CirclePlus},
     { title: "share", url: "/share", icon: Share },
     { title: "settings", url: "/settings", icon: Settings2 },
+
   ],
 };
 
@@ -119,7 +125,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           </SignedOut>
 
           <SignedIn>
-            <UserButton showName={isExpanded} />
+            <SidebarUser showName={isExpanded} />
           </SignedIn>
         </div>
       </SidebarFooter>

@@ -13,14 +13,18 @@ import * as Clerk from "@clerk/elements/common";
 import * as SignIn from "@clerk/elements/sign-in";
 import { BowArrow, KeyRound, MailOpen } from "lucide-react";
 import { Gupter, Roboto } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
   weight: ["400", "500", "700"],
   subsets: ["latin"],
 });
+
+const LAST_METHOD_KEY = "hngr:lastAuthMethod";
+const LAST_EMAIL_KEY = "hngr:lastEmail";
 
 function EmailProviderButton({ email }: { email: string | null }) {
   if (!email) return null;
@@ -64,21 +68,80 @@ function EmailProviderButton({ email }: { email: string | null }) {
 }
 
 export default function SignInPage() {
-  const [email, setEmail] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [lastMethod, setLastMethod] = useState<"google" | "email" | null>(null);
+  const [lastEmail, setLastEmail] = useState<string | null>(null);
   const router = useRouter();
+  const identifierInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedMethod = localStorage.getItem(LAST_METHOD_KEY) as
+        | "google"
+        | "email"
+        | null;
+      if (storedMethod === "google" || storedMethod === "email") {
+        setLastMethod(storedMethod);
+      }
+      const storedEmail = localStorage.getItem(LAST_EMAIL_KEY);
+      if (storedEmail) {
+        setLastEmail(storedEmail);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // watch for the "account not found" error appearing
     const checkForError = setInterval(() => {
-      const errorElement = document.querySelector('[data-error-code="form_identifier_not_found"]');
+      const errorElement = document.querySelector(
+        '[data-error-code="form_identifier_not_found"]'
+      );
       if (errorElement && email) {
         clearInterval(checkForError);
-        router.push(`/auth/create/verify?email=${encodeURIComponent(email)}&redirected=true`);
+        router.push(
+          `/auth/create/verify?email=${encodeURIComponent(email)}&redirected=true`
+        );
       }
     }, 100);
 
     return () => clearInterval(checkForError);
   }, [email, router]);
+
+  const rememberMethod = (method: "google" | "email", value?: string) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LAST_METHOD_KEY, method);
+    setLastMethod(method);
+    if (value) {
+      localStorage.setItem(LAST_EMAIL_KEY, value);
+      setLastEmail(value);
+    }
+  };
+
+  const handleGoogleClick = () => {
+    rememberMethod("google");
+  };
+
+  const handleEmailSubmit = () => {
+    rememberMethod("email", email || undefined);
+  };
+
+  const handleAutofillEmail = () => {
+    if (!lastEmail) return;
+    setEmail(lastEmail);
+    if (identifierInputRef.current) {
+      identifierInputRef.current.focus();
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value"
+      )?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(identifierInputRef.current, lastEmail);
+        identifierInputRef.current.dispatchEvent(
+          new Event("input", { bubbles: true })
+        );
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5 min-h-screen items-center text-center justify-center">
@@ -107,19 +170,44 @@ export default function SignInPage() {
                 <Clerk.Connection
                   name="google"
                   className="flex w-full items-center justify-center gap-2"
+                  onClick={handleGoogleClick}
                 >
                   <Google className="size-5 flex-none" />
-                  <span className="flex-1 text-center">Continue with Google</span>
+                  <span className="flex-1 text-center flex items-center justify-center gap-2">
+                    Continue with Google
+                    {lastMethod === "google" && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] uppercase font-semibold"
+                      >
+                        last used
+                      </Badge>
+                    )}
+                  </span>
                 </Clerk.Connection>
               </Button>
               <FieldSeparator>or</FieldSeparator>
               <Clerk.Field name="identifier" className="gap-2 flex flex-col">
-                <Label asChild>
-                  <Clerk.Label>email address</Clerk.Label>
-                </Label>
+                <div className="flex items-center justify-between text-left">
+                  <Label asChild>
+                    <Clerk.Label>email address</Clerk.Label>
+                  </Label>
+                  {lastMethod === "email" && lastEmail && (
+                    <button
+                      type="button"
+                      onClick={handleAutofillEmail}
+                      className="focus:outline-none"
+                    >
+                      <Badge className="cursor-pointer text-[10px] uppercase font-semibold">
+                        last used
+                      </Badge>
+                    </button>
+                  )}
+                </div>
                 <Clerk.Input asChild>
                   <Input
-                    value={email ?? ""}
+                    ref={identifierInputRef}
+                    value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </Clerk.Input>
@@ -127,7 +215,7 @@ export default function SignInPage() {
               </Clerk.Field>
 
               <SignIn.Action submit asChild>
-                <Button>
+                <Button onClick={handleEmailSubmit}>
                   <MailOpen />
                   send me a code
                 </Button>

@@ -34,6 +34,7 @@ export async function syncUser(clerkUser: {
       },
       {
         onConflict: 'id',
+        ignoreDuplicates: false,
       }
     )
     .select()
@@ -105,6 +106,29 @@ export async function updateUserProfile(
   const { data, error } = await supabase
     .from('users')
     .update(updates)
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as User;
+}
+
+/**
+ * Update hngr+ membership status
+ */
+export async function updatePlusMembership(
+  userId: string,
+  isPlus: boolean,
+  plusExpiresAt?: string | null
+) {
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      is_plus: isPlus,
+      plus_expires_at: plusExpiresAt,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', userId)
     .select()
     .single();

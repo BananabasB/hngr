@@ -17,6 +17,105 @@ export type Tribute = {
   health: Health;
   foodLvl: number
 };
+// Color schemes extracted from globals.css (using hex values for Stripe compatibility)
+const colorSchemes = {
+  default: {
+    light: {
+      colorPrimary: "#1a1a2e", // Dark blue-gray
+      colorBackground: "#ffffff", // White
+      colorText: "#0f172a", // Dark slate
+      colorDanger: "#dc2626", // Red-600
+    },
+    dark: {
+      colorPrimary: "#cbd5e1", // Light slate
+      colorBackground: "#0f172a", // Dark slate
+      colorText: "#f8fafc", // Light gray
+      colorDanger: "#ef4444", // Red-500
+    }
+  },
+  catppuccin: {
+    light: {
+      colorPrimary: "#7287fd", // Lavender
+      colorBackground: "#eff1f5", // Base (light)
+      colorText: "#4c4f69", // Text (dark)
+      colorDanger: "#d20f39", // Red
+    },
+    dark: {
+      colorPrimary: "#b4befe", // Lavender
+      colorBackground: "#1e1e2e", // Base (dark)
+      colorText: "#cdd6f4", // Text (light)
+      colorDanger: "#f38ba8", // Red
+    }
+  }
+};
+
+// Font configuration for Stripe
+const fontConfig = {
+  fontSizeBase: "16px",
+  fontFamily: "'IBM Plex Mono', monospace",
+
+};
+
+// Get current theme and palette from document
+function getCurrentTheme(): { theme: 'light' | 'dark', palette: 'default' | 'catppuccin' } {
+  if (typeof window === 'undefined') {
+    return { theme: 'light', palette: 'default' };
+  }
+
+  const html = document.documentElement;
+  const isDark = html.classList.contains('dark');
+  const isCatppuccin = html.hasAttribute('data-palette') && html.getAttribute('data-palette') === 'catppuccin';
+
+  return {
+    theme: isDark ? 'dark' : 'light',
+    palette: isCatppuccin ? 'catppuccin' : 'default'
+  };
+}
+
+export function getStripeAppearance() {
+  const { theme, palette } = getCurrentTheme();
+  const colors = colorSchemes[palette][theme];
+
+  return {
+    theme: "stripe" as const,
+    variables: {
+      ...colors,
+      borderRadius: "0.625rem",
+      spacingUnit: "2px",
+      ...fontConfig,
+    },
+    props: {
+      
+    }
+  };
+}
+
+// React hook for reactive theme tracking
+import { useState, useEffect } from 'react';
+
+export function useStripeAppearance() {
+  const [appearance, setAppearance] = useState(getStripeAppearance());
+
+  useEffect(() => {
+    // Initial appearance
+    setAppearance(getStripeAppearance());
+
+    // Create observer for class and attribute changes
+    const observer = new MutationObserver(() => {
+      setAppearance(getStripeAppearance());
+    });
+
+    // Observe the html element for class and attribute changes
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-palette']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return appearance;
+}
 
 export type Health = {
   mental: number,
@@ -40,6 +139,7 @@ export type EventTemplate = {
   roles: string[];
   effects?: (db: HngrDB, tributes: Record<string, Tribute>) => void;
   conditions?: (db: HngrDB, tributes: Record<string, Tribute>) => boolean;
+  source?: "core" | "user";
 };
 
 export type Event = {

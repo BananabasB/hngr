@@ -1,5 +1,6 @@
 import { EventTemplate } from "./setup";
 import { adjustTrust, killTribute } from "./social";
+import type { SimulationEventTemplate } from "@/lib/supabase/types";
 
 function getTrust(db: any, fromId: string, toId: string): number {
   return db.social?.trust?.[fromId]?.[toId] ?? 0;
@@ -13,7 +14,7 @@ function isOnlyTwoTributesLeft(db: any): boolean {
   return db.tributes && Object.keys(db.tributes).length === 2;
 }
 
-export const templates: EventTemplate[] = [
+const coreTemplates: EventTemplate[] = [
   {
     id: "arrow-kill",
     type: "kill",
@@ -260,7 +261,7 @@ export const templates: EventTemplate[] = [
       return true;
     },
     effects(db, {killer, victim}) {
-      if (Math.random() < 0.95) killTribute(db, victim.id); // <-- This looks like a typo, should it be killer.id?
+      if (Math.random() < 0.95) killTribute(db, killer.id);
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
     },
@@ -301,7 +302,7 @@ export const templates: EventTemplate[] = [
     ],
     roles: ["victim"],
     effects: (db, { victim }) => {
-      victim.health.physical == 0; // <-- This is likely a bug, should be killTribute(db, victim.id) or victim.health.physical = 0
+      killTribute(db, victim.id);
     },
   },
   {
@@ -339,9 +340,6 @@ export const templates: EventTemplate[] = [
       adjustTrust(db, giver.id, receiver.id, 10);
     },
   },
-  // --- THIS IS WHERE THE ERROR WAS ---
-  // The ]; was here, now it's gone.
-
   // Social & Trust-building events
   {
     id: "campfire-singalong",
@@ -652,3 +650,42 @@ export const templates: EventTemplate[] = [
     }
   },
 ];
+
+const templates: EventTemplate[] = [...coreTemplates];
+let userTemplates: EventTemplate[] = [];
+
+function syncTemplates() {
+  templates.length = 0;
+  templates.push(...coreTemplates, ...userTemplates);
+}
+
+export function applyUserTemplates(simTemplates: SimulationEventTemplate[]) {
+  userTemplates = simTemplates.map(transformTemplate);
+  syncTemplates();
+}
+
+syncTemplates();
+
+export { templates };
+
+export function transformTemplate(template: SimulationEventTemplate): EventTemplate {
+  const textParts = template.text_template
+    .split(/(\{\{[^}]+\}\})/)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.startsWith("{{") && part.endsWith("}}")) {
+        const inner = part.slice(2, -2).trim();
+        const [role, ...propParts] = inner.split(".");
+        return { role, prop: propParts.join(".") || "name" };
+      }
+      return part;
+    });
+
+  return {
+    id: template.id,
+    type: template.type,
+    text: textParts as EventTemplate["text"],
+    roles: template.roles,
+    source: "user",
+  };
+}

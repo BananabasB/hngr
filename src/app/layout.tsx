@@ -29,7 +29,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ibmMono.className} antialiased`}>
+      <body className={`${ibmMono.className} ${ibmMono.variable} antialiased`}>
         <ClerkProvider>
         <ThemeProvider
         attribute="class"

@@ -23,7 +23,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import type { NominationWithDetails } from '@/lib/supabase/types';
+import type { NominationWithDetails, User } from '@/lib/supabase/types';
 import { CheckCircle, XCircle, Heart, Trash2, DollarSign, Flag } from 'lucide-react';
 import { useState } from 'react';
 import type { Tribute } from '@/lib/setup';
@@ -96,7 +96,7 @@ export function NominationCard({
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <Avatar>
+            <Avatar showPlusBadge={user?.is_plus || false}>
               <AvatarImage src={user?.avatar_url || undefined} />
               <AvatarFallback>
                 {user?.display_name?.[0] || user?.username?.[0] || '?'}

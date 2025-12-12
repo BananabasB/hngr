@@ -18,6 +18,8 @@ export interface User {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  is_plus: boolean;
+  plus_expires_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -161,4 +163,73 @@ export interface CreateTributeRequest {
   image_url?: string;
   bio?: string;
   is_public?: boolean;
+}
+
+export interface CustomEvent {
+  id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  event_date: string;
+  location: string | null;
+  max_attendees: number | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventAttendee {
+  id: string;
+  event_id: string;
+  user_id: string;
+  joined_at: string;
+}
+
+export interface CustomEventWithDetails extends CustomEvent {
+  creator?: User;
+  attendee_count?: number;
+  attendees?: (EventAttendee & { user?: User })[];
+}
+
+export interface CreateCustomEventRequest {
+  title: string;
+  description?: string;
+  event_date: string;
+  location?: string;
+  max_attendees?: number | null;
+  is_public?: boolean;
+}
+
+export type SimulationEventType =
+  | 'kill'
+  | 'kill2'
+  | 'alliance'
+  | 'find'
+  | 'feast'
+  | 'generic'
+  | 'training'
+  | 'combat';
+
+export type SimulationEventStatus = 'approved' | 'pending' | 'rejected';
+
+export interface SimulationEventTemplate {
+  id: string;
+  creator_id: string;
+  title: string;
+  type: SimulationEventType;
+  roles: string[];
+  text_template: string;
+  effect_json: Record<string, any> | null;
+  status: SimulationEventStatus;
+  created_at: string;
+  updated_at: string;
+  creator?: Pick<User, 'id' | 'display_name' | 'username' | 'avatar_url'>;
+}
+
+export interface CreateSimulationEventTemplateRequest {
+  title: string;
+  type: SimulationEventType;
+  roles: string[];
+  text_template: string;
+  effect_json?: Record<string, any> | null;
 }

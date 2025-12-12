@@ -2,20 +2,23 @@
 
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
-import { Badge } from "./badge"
-import { Plus } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { PlusBadge } from "./plus-badge"
 
-function Avatar({
+interface AvatarWithPlusProps extends React.ComponentProps<typeof AvatarPrimitive.Root> {
+  isPlus?: boolean;
+  badgeSize?: "sm" | "md" | "lg";
+}
+
+function AvatarWithPlus({
   className,
-  showPlusBadge = false,
+  isPlus = false,
+  badgeSize = "sm",
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
-  showPlusBadge?: boolean;
-}) {
+}: AvatarWithPlusProps) {
   return (
-    <div className="relative inline-block">
+    <div className="relative">
       <AvatarPrimitive.Root
         data-slot="avatar"
         className={cn(
@@ -24,14 +27,7 @@ function Avatar({
         )}
         {...props}
       />
-      {showPlusBadge && (
-        <Badge 
-          variant="secondary" 
-          className="absolute -bottom-1 -right-1 size-5 rounded-full p-0 flex items-center justify-center bg-blue-500 text-white border-2 border-background"
-        >
-          <Plus className="w-3 h-3" />
-        </Badge>
-      )}
+      {isPlus && <PlusBadge size={badgeSize} />}
     </div>
   )
 }
@@ -65,4 +61,4 @@ function AvatarFallback({
   )
 }
 
-export { Avatar, AvatarImage, AvatarFallback }
+export { AvatarWithPlus, AvatarImage, AvatarFallback }
