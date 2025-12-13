@@ -48,9 +48,9 @@ export function SidebarUser({ showName = false }: { showName?: boolean }) {
               {user.is_plus && (
                 <Badge 
                   variant="secondary" 
-                  className="absolute -bottom-1 -right-1 size-5 rounded-full p-0 flex items-center justify-center bg-blue-500 text-white border-2 border-background"
+                  className="absolute -bottom-1 -right-1 size-5 rounded-full p-0 flex items-center justify-center bg-gradient-to-b from-sidebar to-sidebar-border text-white border border-border"
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-2 h-2" />
                 </Badge>
               )}
             </div>
@@ -76,22 +76,24 @@ export function SidebarUser({ showName = false }: { showName?: boolean }) {
             {user.email || 'No email'}
           </div>
           {user.is_plus && (
-            <div className="text-blue-500 text-xs font-medium mt-1">hngr+ Member</div>
+            <div className="text-blue-500 text-xs font-medium mt-1">hngr+ member</div>
           )}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => openUserProfile()}>
           <Settings className="mr-2 h-4 w-4" />
-          Settings
+          user settings
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/pay/checkout')}>
-          <CreditCard className="mr-2 h-4 w-4" />
-          Upgrade to hngr+
-        </DropdownMenuItem>
+        {!user.is_plus && (
+          <DropdownMenuItem onClick={() => router.push('/pay/checkout')}>
+            <CreditCard className="mr-2 h-4 w-4" />
+            upgrade to hngr+
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => signOut()}>
           <LogOut className="mr-2 h-4 w-4" />
-          Sign out
+          sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

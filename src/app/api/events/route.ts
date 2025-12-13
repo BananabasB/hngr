@@ -1,14 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { CreateCustomEventRequest, CustomEventWithDetails } from '@/lib/supabase/types';
+import { CreateCustomEventRequest } from '@/lib/supabase/types';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getUserIdFromAuth(header: string | null): string | null {
+  if (!header) return null;
+  if (!header.startsWith('Bearer ')) return null;
+  return header.replace('Bearer ', '').trim() || null;
+}
+
+function isPlusActive(user: { is_plus: boolean; plus_expires_at: string | null } | null) {
+  if (!user?.is_plus) return false;
+  if (!user.plus_expires_at) return true;
+  return new Date(user.plus_expires_at) > new Date();
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection unavailable' }, { status: 500 });
+    }
+
+    const authHeader = request.headers.get('authorization');
+    const requesterId = getUserIdFromAuth(authHeader);
+
+    if (!requesterId) {
+      return NextResponse.json({ error: 'User authentication required' }, { status: 401 });
+    }
+
+    const { data: requester, error: requesterError } = await supabase
+      .from('users')
+      .select('is_plus, plus_expires_at')
+      .eq('id', requesterId)
+      .single();
+
+    if (requesterError && requesterError.code !== 'PGRST116') {
+      console.error('Error verifying membership for events GET:', requesterError);
+      return NextResponse.json(
+        { error: 'Unable to verify membership status' },
+        { status: 500 }
+      );
+    }
+
+    if (!isPlusActive(requester ?? null)) {
+      return NextResponse.json({ error: 'hngr+ required' }, { status: 402 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('user_id');
     const isPublic = searchParams.get('public') === 'true';
@@ -49,9 +86,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createSupabaseServerClient();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database connection unavailable' }, { status: 500 });
+    }
+
     const eventData: CreateCustomEventRequest = await request.json();
     const authHeader = request.headers.get('authorization');
-    const userId = authHeader?.replace('Bearer ', '');
+    const userId = getUserIdFromAuth(authHeader);
 
     if (!userId) {
       return NextResponse.json(
@@ -67,11 +109,16 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
       .single();
 
-    if (userError || !user?.is_plus || (user.plus_expires_at && new Date(user.plus_expires_at) <= new Date())) {
+    if (userError && userError.code !== 'PGRST116') {
+      console.error('Error verifying membership for events POST:', userError);
       return NextResponse.json(
-        { error: 'hngr+ membership required to create events' },
-        { status: 403 }
+        { error: 'Unable to verify membership status' },
+        { status: 500 }
       );
+    }
+
+    if (!isPlusActive(user ?? null)) {
+      return NextResponse.json({ error: 'hngr+ required' }, { status: 402 });
     }
 
     const { data, error } = await supabase

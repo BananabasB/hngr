@@ -25,6 +25,7 @@ import {
   Smartphone,
   CirclePlus,
   Calendar,
+  CalendarPlus
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -59,7 +60,7 @@ const data = {
     { title: "districts", url: "/", icon: Building2 },
     { title: "timeline", url: "/timeline", icon: CalendarIcon },
     { title: "friends", url: "/friends", icon: Users },
-    { title: "events", url: "/events", icon: Calendar },
+    { title: "events", url: "/events", icon: CalendarPlus },
     { title: "nominations", url: "/nominations", icon: BadgeCheck },
     { title: "hngr+", url: "/plus", icon: CirclePlus},
     { title: "share", url: "/share", icon: Share },

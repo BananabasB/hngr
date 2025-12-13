@@ -212,6 +212,61 @@ export type SimulationEventType =
 
 export type SimulationEventStatus = 'approved' | 'pending' | 'rejected';
 
+export type TemplateAttribute = 'health.physical' | 'health.mental' | 'food';
+
+export type TemplateOperand =
+  | { kind: 'number'; value: number }
+  | { kind: 'role_attribute'; role: string; attribute: TemplateAttribute };
+
+export type TemplateComparisonOperator = '>' | '>=' | '<' | '<=' | '==' | '!=';
+
+export interface TemplateConditionBlock {
+  id: string;
+  left: TemplateOperand;
+  operator: TemplateComparisonOperator;
+  right: TemplateOperand;
+  negate?: boolean;
+}
+
+export type TemplateEffectBlock =
+  | {
+      id: string;
+      action: 'kill';
+      targetRole: string;
+    }
+  | {
+      id: string;
+      action: 'adjust_health';
+      targetRole: string;
+      attribute: Exclude<TemplateAttribute, 'food'>;
+      delta: number;
+    }
+  | {
+      id: string;
+      action: 'adjust_food';
+      targetRole: string;
+      delta: number;
+    }
+  | {
+      id: string;
+      action: 'adjust_trust';
+      sourceRole: string;
+      targetRole: string;
+      delta: number;
+    }
+  | {
+      id: string;
+      action: 'set_alliance';
+      roleA: string;
+      roleB: string;
+      allied: boolean;
+    };
+
+export interface TemplateLogicPayload {
+  criteria: TemplateConditionBlock[];
+  effects: TemplateEffectBlock[];
+}
+
 export interface SimulationEventTemplate {
   id: string;
   creator_id: string;
@@ -219,7 +274,7 @@ export interface SimulationEventTemplate {
   type: SimulationEventType;
   roles: string[];
   text_template: string;
-  effect_json: Record<string, any> | null;
+  effect_json: TemplateLogicPayload | null;
   status: SimulationEventStatus;
   created_at: string;
   updated_at: string;
@@ -231,5 +286,5 @@ export interface CreateSimulationEventTemplateRequest {
   type: SimulationEventType;
   roles: string[];
   text_template: string;
-  effect_json?: Record<string, any> | null;
+  effect_json?: TemplateLogicPayload | null;
 }

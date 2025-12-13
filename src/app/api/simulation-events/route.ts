@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         type: body.type,
         roles: body.roles,
         text_template: body.text_template.trim(),
-        effect_json: body.effect_json ?? { action: 'none' },
+        effect_json: body.effect_json ?? null,
         status: 'approved',
       })
       .select()

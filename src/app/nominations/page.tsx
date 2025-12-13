@@ -21,9 +21,12 @@ import type { NominationWithDetails } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
 import { Plus, Inbox, Send } from 'lucide-react';
 import { NotAuthenticated } from '@/components/not-authenticated';
+import { useAuth } from '@/lib/auth';
 
 export default function NominationsPage() {
   const { user, isLoaded } = useUser();
+  const { user: plusUser } = useAuth();
+  const isPlus = !!plusUser?.is_plus;
   const router = useRouter();
   const [receivedNominations, setReceivedNominations] = useState<NominationWithDetails[]>([]);
   const [sentNominations, setSentNominations] = useState<NominationWithDetails[]>([]);
@@ -228,29 +231,42 @@ export default function NominationsPage() {
         </TabsList>
 
         <TabsContent value="received" className="space-y-4">
-          {receivedNominations.length === 0 ? (
+          {isPlus ? (
+            receivedNominations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                <Inbox className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">no nominations yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  friends' nominations will appear here once you start receiving them
+                </p>
+              </div>
+            ) : (
+              receivedNominations.map((nomination) => (
+                <NominationCard
+                  key={nomination.id}
+                  nomination={nomination}
+                  type="received"
+                  onAccept={handleAccept}
+                  onReject={handleReject}
+                  onVote={handleVote}
+                  onReport={handleReport}
+                  hasVoted={voteStatuses[nomination.id]}
+                  userReported={nomination.user_reported}
+                  reportCount={nomination.report_count}
+                />
+              ))
+            )
+          ) : (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <Inbox className="mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">no nominations yet</h3>
-              <p className="text-sm text-muted-foreground">
-                when your friends nominate tributes for you, they'll appear here
+              <h3 className="mb-2 text-lg font-semibold">hngr+ required</h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                upgrade to hngr+ to view and manage nominations you receive
               </p>
+              <Button onClick={() => router.push('/pay/checkout')}>
+                upgrade now
+              </Button>
             </div>
-          ) : (
-            receivedNominations.map((nomination) => (
-              <NominationCard
-                key={nomination.id}
-                nomination={nomination}
-                type="received"
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onVote={handleVote}
-                onReport={handleReport}
-                hasVoted={voteStatuses[nomination.id]}
-                userReported={nomination.user_reported}
-                reportCount={nomination.report_count}
-              />
-            ))
           )}
         </TabsContent>
 

@@ -213,7 +213,7 @@ body {
   --secondary: oklch(0.77 0.11 233);
   /* sapphire */
   --secondary-foreground: oklch(0.23 0.01 264);
-  --muted: oklch(0.30 0.01 264);
+  --muted: oklch(0.324 0.0319 281.98);
   /* surface0 */
   --muted-foreground: oklch(0.63 0.02 266);
   /* subtext0 */
@@ -275,5 +275,9 @@ span[data-error-code="form_identifier_not_found"] {
 
   :root {
     --radius: 1.7rem !important;
+    --clerk-border-radius: 1.32rem !important;
+  }
+  .cl-internal-1qwy6sx {
+    corner-shape: round !important;
   }
 }
