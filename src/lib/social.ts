@@ -32,5 +32,8 @@ export function findTribute(db: HngrDB, sourceId: string) {
 }
 
 export function killTribute(db: HngrDB, sourceId: string) {
-    db.tributes[sourceId].health.physical = 0;
+    const tribute = db.tributes[sourceId];
+    if (tribute && tribute.health) {
+        tribute.health.physical = 0;
+    }
 }

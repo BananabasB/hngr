@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { CreateSimulationEventTemplateRequest } from "@/lib/supabase/types";
 import { z } from "zod";
+import { v4 as uuidv4 } from 'uuid';
 
 export const maxDuration = 30;
 
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     const result = streamText({
       model: huggingface("Qwen/Qwen2.5-72B-Instruct"),
       messages: await convertToModelMessages(messages),
-      system: "You are Pundit AI, a creative assistant for designing survival games (akin to Hunger Games, do not mention) simulation events. When users ask you to create events, follow these guidelines:\n\n1. For single events: First use previewSimulationEventTemplate to show the user what you're planning to create. Wait for their approval before using createSimulationEventTemplate.\n\n2. For multiple related events: Use createMultipleSimulationEventTemplates when the user asks for several events at once or when you want to create a themed set of events.\n\n3. Always consider game balance, narrative variety, and appropriate tone. Each event should feel like it could happen in the hunger games universe.\n\n4. When creating previews, explain your reasoning for the event design and ask for user feedback before proceeding.",
+      system: "You are Pundit AI, a friendly and helpful assistant for managing the hngr survival games platform. You have comprehensive capabilities to help users manage the platform effectively.\n\n**Current Capabilities:**\n- Create and preview simulation event templates for survival games\n- Search and retrieve user information with beautiful profile displays\n- List and browse existing simulation events\n\n**Guidelines:**\n1. Be conversational and friendly - use phrases like \"Here you go!\" or \"Found some users for you!\"\n2. When users ask about events, use listSimulationEvents to show existing ones\n3. When users mention users, offer to search for them or get their info\n4. For event creation: use previewSimulationEventTemplate first, then createSimulationEventTemplate after approval\n5. Always explain what you're doing and why\n6. If you need more information, ask clarifying questions\n7. Note: Currently you can only create and list events - update/delete functionality will be available soon\n\n**Event Types:** kill (single death), kill2 (double death), alliance (forming alliances), find (finding items), feast (eating), generic (miscellaneous), training (skill building), combat (fighting)\n\nYou can help with platform management, user lookup with profile cards, event creation, and provide insights about the game system. Be proactive and suggest actions when appropriate!",
       tools: {
         createSimulationEventTemplate: tool({
           description: "Create a new game event template for the survival game simulation. This defines what happens when tributes interact in the game.",
@@ -71,28 +72,36 @@ export async function POST(req: Request) {
           }),
           execute: async ({ title, type, roles, text_template }) => {
             try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/simulation-events`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${userId}`,
-                },
-                body: JSON.stringify({
+              // Direct internal API call - no HTTP needed
+              const { createClient } = await import('@supabase/supabase-js');
+              const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+              
+              const supabase = createSupabaseServerClient();
+              if (!supabase) {
+                return { success: false, error: 'Database unavailable' };
+              }
+
+              const { data, error } = await supabase
+                .from('simulation_event_templates')
+                .insert({
                   title,
                   type,
                   roles,
                   text_template,
-                } as CreateSimulationEventTemplateRequest),
-              });
+                  creator_id: userId,
+                  status: 'pending'
+                })
+                .select()
+                .single();
 
-              if (!response.ok) {
-                const error = await response.json();
-                return { success: false, error: error.error || 'Failed to create simulation event template' };
+              if (error) {
+                console.error('Create event error:', error);
+                return { success: false, error: error.message || 'Failed to create simulation event template' };
               }
 
-              const data = await response.json();
-              return { success: true, template: data.data };
+              return { success: true, template: data };
             } catch (error) {
+              console.error('Create event error:', error);
               return { success: false, error: 'Failed to create simulation event template' };
             }
           },
@@ -125,28 +134,37 @@ export async function POST(req: Request) {
           }),
           execute: async ({ events }) => {
             try {
+              const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+              const supabase = createSupabaseServerClient();
+              
+              if (!supabase) {
+                return { success: false, error: 'Database unavailable' };
+              }
+
               const results = [];
               
               for (const event of events) {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/simulation-events`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userId}`,
-                  },
-                  body: JSON.stringify(event as CreateSimulationEventTemplateRequest),
-                });
+                const { data, error } = await supabase
+                  .from('simulation_event_templates')
+                  .insert({
+                    title: event.title,
+                    type: event.type,
+                    roles: event.roles,
+                    text_template: event.text_template,
+                    creator_id: userId,
+                    status: 'pending'
+                  })
+                  .select()
+                  .single();
 
-                if (!response.ok) {
-                  const error = await response.json();
+                if (error) {
                   results.push({ 
                     success: false, 
                     title: event.title, 
-                    error: error.error || 'Failed to create simulation event template' 
+                    error: error.message || 'Failed to create simulation event template' 
                   });
                 } else {
-                  const data = await response.json();
-                  results.push({ success: true, title: event.title, template: data.data });
+                  results.push({ success: true, title: event.title, template: data });
                 }
               }
 
@@ -157,7 +175,134 @@ export async function POST(req: Request) {
                 message: `Created ${successCount} out of ${events.length} events successfully.`
               };
             } catch (error) {
+              console.error('Create multiple events error:', error);
               return { success: false, error: 'Failed to create simulation event templates' };
+            }
+          },
+        }),
+        searchUsers: tool({
+          description: "Search for users by username or display name",
+          inputSchema: z.object({
+            query: z.string().describe("Search query for username or display name"),
+            limit: z.number().optional().default(10).describe("Maximum number of results to return"),
+          }),
+          execute: async ({ query, limit }) => {
+            try {
+              const { createClient } = await import('@supabase/supabase-js');
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+              const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+              const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              });
+
+              const { data, error } = await supabaseAdmin
+                .from('users')
+                .select('*')
+                .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+                .limit(limit);
+
+              if (error) {
+                console.error('Search users error:', error);
+                return { success: false, error: error.message || 'Failed to search users' };
+              }
+
+              return { 
+                success: true, 
+                users: data || [],
+                count: data?.length || 0
+              };
+            } catch (error) {
+              console.error('Search users error:', error);
+              return { success: false, error: `Failed to search users: ${error instanceof Error ? error.message : 'Unknown error'}` };
+            }
+          },
+        }),
+        getUserInfo: tool({
+          description: "Get detailed information about a specific user by their ID, username, or email",
+          inputSchema: z.object({
+            identifier: z.string().describe("User ID, username, or email address"),
+          }),
+          execute: async ({ identifier }) => {
+            try {
+              const { createClient } = await import('@supabase/supabase-js');
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+              const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+              const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+                auth: {
+                  autoRefreshToken: false,
+                  persistSession: false
+                }
+              });
+
+              const { data, error } = await supabaseAdmin
+                .from('users')
+                .select('*')
+                .or(`username.ilike.${identifier},email.eq.${identifier},id.eq.${identifier}`)
+                .single();
+
+              if (error) {
+                if (error.code === 'PGRST116') {
+                  return { success: false, error: 'User not found' };
+                }
+                console.error('Get user info error:', error);
+                return { success: false, error: error.message || 'Failed to get user information' };
+              }
+
+              return { 
+                success: true, 
+                user: data
+              };
+            } catch (error) {
+              console.error('Get user info error:', error);
+              return { success: false, error: `Failed to get user information: ${error instanceof Error ? error.message : 'Unknown error'}` };
+            }
+          },
+        }),
+        listSimulationEvents: tool({
+          description: "List existing simulation event templates",
+          inputSchema: z.object({
+            includeMine: z.boolean().optional().default(false).describe("Include events created by the current user"),
+            limit: z.number().optional().default(20).describe("Maximum number of events to return"),
+          }),
+          execute: async ({ includeMine, limit }) => {
+            try {
+              const { createSupabaseServerClient } = await import('@/lib/supabase/server');
+              const supabase = createSupabaseServerClient();
+              
+              if (!supabase) {
+                return { success: false, error: 'Database unavailable' };
+              }
+
+              let query = supabase
+                .from('simulation_event_templates')
+                .select(`*, creator:users(id, username, display_name, avatar_url)`)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+              if (includeMine && userId) {
+                query = query.or(`status.eq.approved,creator_id.eq.${userId}`);
+              } else {
+                query = query.eq('status', 'approved');
+              }
+
+              const { data, error } = await query;
+
+              if (error) {
+                console.error('List events error:', error);
+                return { success: false, error: error.message || 'Failed to list simulation events' };
+              }
+
+              return { 
+                success: true, 
+                events: data || [],
+                count: data?.length || 0
+              };
+            } catch (error) {
+              console.error('List events error:', error);
+              return { success: false, error: `Failed to list simulation events: ${error instanceof Error ? error.message : 'Unknown error'}` };
             }
           },
         }),

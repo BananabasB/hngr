@@ -12,11 +12,12 @@ import { Google } from "@/components/ui/svgs/google";
 import { cn } from "@/lib/utils";
 import * as Clerk from "@clerk/elements/common";
 import * as SignIn from "@clerk/elements/sign-in";
-import { BowArrow, KeyRound, MailOpen } from "lucide-react";
 import { Gupter, Roboto } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { SiLine } from "@icons-pack/react-simple-icons";
+import { BowArrow, KeyRound, MailOpen } from "lucide-react";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
@@ -70,7 +71,7 @@ function EmailProviderButton({ email }: { email: string | null }) {
 
 export function SignInPage() {
   const [email, setEmail] = useState("");
-  const [lastMethod, setLastMethod] = useState<"google" | "email" | null>(null);
+  const [lastMethod, setLastMethod] = useState<"google" | "email" | "line" | null>(null);
   const [lastEmail, setLastEmail] = useState<string | null>(null);
   const router = useRouter();
   const identifierInputRef = useRef<HTMLInputElement>(null);
@@ -80,8 +81,9 @@ export function SignInPage() {
       const storedMethod = localStorage.getItem(LAST_METHOD_KEY) as
         | "google"
         | "email"
+        | "line"
         | null;
-      if (storedMethod === "google" || storedMethod === "email") {
+      if (storedMethod === "google" || storedMethod === "email" || storedMethod === "line") {
         setLastMethod(storedMethod);
       }
       const storedEmail = localStorage.getItem(LAST_EMAIL_KEY);
@@ -107,7 +109,7 @@ export function SignInPage() {
     return () => clearInterval(checkForError);
   }, [email, router]);
 
-  const rememberMethod = (method: "google" | "email", value?: string) => {
+  const rememberMethod = (method: "google" | "email" | "line", value?: string) => {
     if (typeof window === "undefined") return;
     localStorage.setItem(LAST_METHOD_KEY, method);
     setLastMethod(method);
@@ -119,6 +121,10 @@ export function SignInPage() {
 
   const handleGoogleClick = () => {
     rememberMethod("google");
+  };
+
+  const handleLineClick = () => {
+    rememberMethod("line");
   };
 
   const handleEmailSubmit = () => {
@@ -179,6 +185,34 @@ export function SignInPage() {
                   </Clerk.Connection>
                 </Button>
                 {lastMethod === "google" && (
+                  <Badge
+                    variant="secondary"
+                    className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
+                  >
+                    last used
+                  </Badge>
+                )}
+              </div>
+              <div className="relative">
+                <Button
+                  asChild
+                  className={`w-full rounded-lg bg-brand-line-bg text-white pl-1 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active ${roboto.className} font-medium`}
+                  onClick={handleLineClick}
+                >
+                  <Clerk.Connection
+                    name="line"
+                    className="flex w-full items-center justify-center gap-2"
+                    aria-label="Sign in with LINE"
+                  >
+                    <span className="flex justify-items-start items-center border-r border-brand-line-line pr-2 h-full">
+                      <SiLine className="text-white size-5" />
+                    </span>
+                    <span className="flex-1 text-center flex items-center justify-center gap-2">
+                      Continue with LINE
+                    </span>
+                  </Clerk.Connection>
+                </Button>
+                {lastMethod === "line" && (
                   <Badge
                     variant="secondary"
                     className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"

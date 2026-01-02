@@ -10,13 +10,13 @@ import Link from "next/link";
 import { Plus, KeyRound } from "lucide-react";
 export default function PunditPage() {
   const user = useAuth();
-    const runtime = useChatRuntime(
-        {
-            transport: new AssistantChatTransport({
-                api: "/api/pundit/chat",
-            }),
-        }
-    )
+  const runtime = useChatRuntime(
+    {
+      transport: new AssistantChatTransport({
+        api: "/api/pundit/chat",
+      }),
+    }
+  );
   return (
     <>
       {!user.isPlus ? (

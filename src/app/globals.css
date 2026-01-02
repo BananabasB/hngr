@@ -10,9 +10,14 @@ body {
 }
 
 @theme inline {
+    --color-brand-line-bg: var(--brand-line-bg);
+  --color-brand-line-bg-hover: var(--brand-line-bg-hover);
+  --color-brand-line-bg-active: var(--brand-line-bg-active);
+  --color-brand-line-line: var(--brand-line-line);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-ibm-mono);
+    --font-brand-line: "Helvetica", "Arial", var(--font-sans);
   --font-serif: "Playfair";
   --font-mono: var(--font-ibm-mono);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -51,6 +56,11 @@ body {
 }
 
 :root {
+    --brand-line-bg: #06C755;
+  --brand-line-bg-hover: color-mix(in srgb, black 10%, var(--brand-line-bg));
+  --brand-line-bg-active: color-mix(in srgb, black 30%, var(--brand-line-bg));
+  --brand-line-line: color-mix(in srgb, black 8%, transparent);
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);

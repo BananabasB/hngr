@@ -12,12 +12,24 @@ import {
   UtensilsIcon,
   DumbbellIcon,
   Loader2,
+  PlusIcon,
+  CrownIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { 
+  Item, 
+  ItemGroup, 
+  ItemMedia, 
+  ItemContent, 
+  ItemTitle, 
+  ItemDescription, 
+  ItemActions 
+} from "@/components/ui/item";
 
 const getEventIcon = (type: string) => {
   switch (type) {
@@ -100,9 +112,19 @@ export const SimulationEventTool: ToolCallMessagePartComponent = ({
   // Parse the arguments safely - handle various formats
   let args: Record<string, any> = {};
   try {
-    // Try parsing as JSON first
-    if (argsText.trim().startsWith('{')) {
-      args = JSON.parse(argsText);
+    // Check if argsText is valid and not empty
+    if (!argsText || argsText.trim() === '') {
+      args = {};
+    } else if (argsText.trim().startsWith('{')) {
+      // Try parsing as JSON, but ensure it's complete
+      const trimmedText = argsText.trim();
+      if (trimmedText.endsWith('}')) {
+        args = JSON.parse(trimmedText);
+      } else {
+        console.warn('Incomplete JSON object, using fallback parsing');
+        // Fallback parsing for incomplete JSON
+        args = { title: 'Processing...', type: 'generic', roles: [], text_template: trimmedText };
+      }
     } else {
       // If not JSON, try to extract key-value pairs
       const pairs = argsText.split(',');
@@ -404,6 +426,348 @@ export const SimulationEventTool: ToolCallMessagePartComponent = ({
                   Your game event template has been saved and will appear in simulations.
                 </p>
               </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+  }
+
+  // Handle user management tools
+  if (toolName === 'searchUsers') {
+    const { query, limit } = args as { query?: string; limit?: number };
+    return (
+      <Card className="my-4 border-2 border-blue-200 dark:border-blue-800 transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <UsersIcon className="size-5 text-blue-600" />
+              <div>
+                <h3 className="font-semibold text-lg leading-tight">
+                  Searching Users
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {query ? `Searching for "${query}"` : 'User Search'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCancelled ? (
+                <XCircleIcon className="size-5 text-destructive" />
+              ) : result ? (
+                <CheckIcon className="size-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <Loader2 className="size-5 animate-spin text-primary" />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="h-8 w-8 p-0"
+              >
+                {isCollapsed ? <ChevronUpIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        {!isCollapsed && (
+          <CardContent className="pt-0 space-y-4">
+            {query && (
+              <div>
+                <p className="text-sm font-medium mb-2">Search Query:</p>
+                <div className="p-2 bg-muted/50 border rounded">
+                  <code className="text-sm">{query}</code>
+                </div>
+              </div>
+            )}
+
+            {result && (
+              <div>
+                <p className="text-sm font-medium mb-4">Here you go! Found {result.users?.length || 0} users:</p>
+                {result.success && result.users ? (
+                  <ItemGroup>
+                    {result.users.length > 0 ? (
+                      result.users.map((user: any, index: number) => (
+                        <Item key={index}>
+                          <ItemMedia variant="image">
+                            <div className="relative">
+                              {user.avatar_url ? (
+                                <Image
+                                  src={user.avatar_url}
+                                  alt={`${user.username || user.email}'s avatar`}
+                                  width={40}
+                                  height={40}
+                                  className="rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {(user.username || user.email || '?').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              
+                              {user.is_plus && (
+                                <div className="absolute -top-1 -right-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-0.5">
+                                  <CrownIcon className="size-2.5 text-white" />
+                                </div>
+                              )}
+                            </div>
+                          </ItemMedia>
+                          
+                          <ItemContent>
+                            <ItemTitle>
+                              <div className="flex items-center gap-2">
+                                <span>{user.username || user.email}</span>
+                                {user.is_plus && (
+                                  <Badge variant="secondary" className="text-xs bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 px-1.5 py-0.5">
+                                    hngr+
+                                  </Badge>
+                                )}
+                              </div>
+                            </ItemTitle>
+                            {user.display_name && (
+                              <ItemDescription>{user.display_name}</ItemDescription>
+                            )}
+                            <ItemDescription className="text-xs">{user.email}</ItemDescription>
+                          </ItemContent>
+                          
+                          <ItemActions>
+                            <Button size="sm" variant="outline">
+                              <PlusIcon className="size-3 mr-1" />
+                              Follow
+                            </Button>
+                          </ItemActions>
+                        </Item>
+                      ))
+                    ) : (
+                      <Item>
+                        <ItemMedia variant="icon">
+                          <UsersIcon className="size-8 text-muted-foreground" />
+                        </ItemMedia>
+                        <ItemContent>
+                          <ItemTitle>No users found</ItemTitle>
+                          <ItemDescription>Try a different search term</ItemDescription>
+                        </ItemContent>
+                      </Item>
+                    )}
+                  </ItemGroup>
+                ) : (
+                  <Item variant="muted">
+                    <ItemMedia variant="icon">
+                      <XCircleIcon className="size-4 text-destructive" />
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>Search failed</ItemTitle>
+                      <ItemDescription>{result.error || 'Something went wrong'}</ItemDescription>
+                    </ItemContent>
+                  </Item>
+                )}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+  }
+
+  if (toolName === 'getUserInfo') {
+    const { identifier } = args as { identifier?: string };
+    return (
+      <Card className="my-4 border-2 border-green-200 dark:border-green-800 transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <UsersIcon className="size-5 text-green-600" />
+              <div>
+                <h3 className="font-semibold text-lg leading-tight">
+                  User Info
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {identifier ? `Looking up: ${identifier}` : 'User Information'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCancelled ? (
+                <XCircleIcon className="size-5 text-destructive" />
+              ) : result ? (
+                <CheckIcon className="size-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <Loader2 className="size-5 animate-spin text-primary" />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="h-8 w-8 p-0"
+              >
+                {isCollapsed ? <ChevronUpIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        {!isCollapsed && (
+          <CardContent className="pt-0 space-y-4">
+            {identifier && (
+              <Item variant="muted">
+                <ItemContent>
+                  <ItemTitle>Search Identifier</ItemTitle>
+                  <ItemDescription>{identifier}</ItemDescription>
+                </ItemContent>
+              </Item>
+            )}
+
+            {result && (
+              <>
+                {result.success && result.user ? (
+                  <Item>
+                    <ItemMedia variant="image">
+                      <div className="relative">
+                        {result.user.avatar_url ? (
+                          <Image
+                            src={result.user.avatar_url}
+                            alt={`${result.user.username || result.user.email}'s avatar`}
+                            width={48}
+                            height={48}
+                            className="rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                            {(result.user.username || result.user.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        
+                        {result.user.is_plus && (
+                          <div className="absolute -top-1 -right-1 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full p-1">
+                            <CrownIcon className="size-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+                    </ItemMedia>
+                    
+                    <ItemContent>
+                      <ItemTitle>
+                        <div className="flex items-center gap-2">
+                          <span>{result.user.username || result.user.email}</span>
+                          {result.user.is_plus && (
+                            <Badge variant="secondary" className="text-xs bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 px-1.5 py-0.5">
+                              hngr+
+                            </Badge>
+                          )}
+                        </div>
+                      </ItemTitle>
+                      {result.user.display_name && (
+                        <ItemDescription>{result.user.display_name}</ItemDescription>
+                      )}
+                      <ItemDescription>{result.user.email}</ItemDescription>
+                      <ItemDescription>hngr+: {result.user.is_plus ? 'Yes' : 'No'}</ItemDescription>
+                    </ItemContent>
+                  </Item>
+                ) : (
+                  <Item variant="muted">
+                    <ItemMedia variant="icon">
+                      <XCircleIcon className="size-4 text-destructive" />
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>User not found</ItemTitle>
+                      <ItemDescription>{result.error || 'Could not find user'}</ItemDescription>
+                    </ItemContent>
+                  </Item>
+                )}
+              </>
+            )}
+          </CardContent>
+        )}
+      </Card>
+    );
+  }
+
+  if (toolName === 'listSimulationEvents') {
+    const { includeMine, limit } = args as { includeMine?: boolean; limit?: number };
+    return (
+      <Card className="my-4 border-2 border-purple-200 dark:border-purple-800 transition-all duration-200 hover:shadow-md">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <PackageIcon className="size-5 text-purple-600" />
+              <div>
+                <h3 className="font-semibold text-lg leading-tight">
+                  Events
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {includeMine ? 'My Events' : 'All Events'} {limit && `(Limit: ${limit})`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {isCancelled ? (
+                <XCircleIcon className="size-5 text-destructive" />
+              ) : result ? (
+                <CheckIcon className="size-5 text-green-600 dark:text-green-400" />
+              ) : (
+                <Loader2 className="size-5 animate-spin text-primary" />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="h-8 w-8 p-0"
+              >
+                {isCollapsed ? <ChevronUpIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        {!isCollapsed && (
+          <CardContent className="pt-0 space-y-4">
+            <div className="flex gap-2 mb-4">
+              {includeMine && <Badge variant="default">My Events</Badge>}
+              {limit && <Badge variant="outline">Limit: {limit}</Badge>}
+            </div>
+
+            {result && (
+              <>
+                {result.success && result.events ? (
+                  <ItemGroup>
+                    {result.events.length > 0 ? (
+                      result.events.map((event: any, index: number) => (
+                        <Item key={index}>
+                          <ItemMedia variant="icon">
+                            {getEventIcon(event.type)}
+                          </ItemMedia>
+                          <ItemContent>
+                            <ItemTitle>{event.title}</ItemTitle>
+                            <ItemDescription>{getEventTypeDescription(event.type)}</ItemDescription>
+                            <ItemDescription>Created by: {event.creator?.username || 'Unknown'}</ItemDescription>
+                          </ItemContent>
+                        </Item>
+                      ))
+                    ) : (
+                      <Item>
+                        <ItemMedia variant="icon">
+                          <PackageIcon className="size-8 text-muted-foreground" />
+                        </ItemMedia>
+                        <ItemContent>
+                          <ItemTitle>No events found</ItemTitle>
+                          <ItemDescription>Try adjusting your filters</ItemDescription>
+                        </ItemContent>
+                      </Item>
+                    )}
+                  </ItemGroup>
+                ) : (
+                  <Item variant="muted">
+                    <ItemMedia variant="icon">
+                      <XCircleIcon className="size-4 text-destructive" />
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>Failed to load events</ItemTitle>
+                      <ItemDescription>{result.error || 'Something went wrong'}</ItemDescription>
+                    </ItemContent>
+                  </Item>
+                )}
+              </>
             )}
           </CardContent>
         )}
