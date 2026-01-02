@@ -11,6 +11,7 @@ export type Tribute = {
   name: string;
   pronouns: Pronouns;
   image: string | null;
+  bio: string;
   id: string;
   district: number;
   relationships: Record<string, Relationship>; // keyed by other tribute IDs
@@ -180,6 +181,7 @@ export function setupDatabase() {
         name: "",
         pronouns: { subject: "", object: "", possessive: "", reflexive: "" },
         image: null,
+        bio: "",
         health: { physical: 100, mental: 100},
         foodLvl: 0,
         id,

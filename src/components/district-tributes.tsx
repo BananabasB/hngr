@@ -18,6 +18,7 @@ import { Label } from "./ui/label";
 import { PencilLine, Upload } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 import { Tribute } from "@/lib/setup";
+import { Textarea } from "./ui/textarea";
 
 type Props = {
   tributes: Record<string, Tribute>; // { id: Tribute, ... }
@@ -61,6 +62,9 @@ export function DistrictTributes({ tributes }: Props) {
                       ? `${t.pronouns.subject}/${t.pronouns.object}/${t.pronouns.possessive}/${t.pronouns.reflexive}`
                       : "no pronouns"}
                   </span>
+                  <p className="text-sm text-muted-foreground text-center max-w-sm px-2">
+                    {t.bio?.trim() ? t.bio : "no bio yet"}
+                  </p>
                   <EditTribute id={t.id} />
                 </li>
               ))}
@@ -82,6 +86,7 @@ export function EditTribute({ id }: { id: string }) {
   // Extract initial state values from the tribute, with fallbacks
   const initialName = tribute?.name ?? "";
   const initialImage = tribute?.image ?? "";
+  const initialBio = tribute?.bio ?? "";
   // Initialize pronouns with existing values or defaults
   const initialPronouns = tribute?.pronouns ? {
     subject: tribute.pronouns.subject ?? "",
@@ -99,6 +104,7 @@ export function EditTribute({ id }: { id: string }) {
   const [draftImage, setDraftImage] = React.useState(initialImage);
   const [draftName, setDraftName] = React.useState(initialName);
   const [draftPronouns, setDraftPronouns] = React.useState(initialPronouns);
+  const [draftBio, setDraftBio] = React.useState(initialBio);
 
   function handleSave() {
     if (!db) return;
@@ -108,6 +114,7 @@ export function EditTribute({ id }: { id: string }) {
       t.name = draftName;
       t.image = draftImage;
       t.pronouns = draftPronouns;
+      t.bio = draftBio;
     }
 
     console.log("all tributes", db.tributes);
@@ -229,6 +236,17 @@ export function EditTribute({ id }: { id: string }) {
                 setDraftPronouns((p) => ({ ...p, reflexive: e.target.value }))
               }
               placeholder="theirs"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`bio-${id}`}>bio</Label>
+            <Textarea
+              id={`bio-${id}`}
+              value={draftBio}
+              onChange={(e) => setDraftBio(e.target.value)}
+              placeholder="who is this tribute?"
+              rows={4}
             />
           </div>
         </div>

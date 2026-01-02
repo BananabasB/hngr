@@ -2,7 +2,8 @@ import { supabase } from '../client';
 import type { User } from '../types';
 
 /**
- * Sync a Clerk user with Supabase users table
+ * Sync a Clerk user with Supabase users table via server API
+ * This avoids RLS policy issues by using the server-side endpoint
  */
 export async function syncUser(clerkUser: {
   id: string;
@@ -21,27 +22,32 @@ export async function syncUser(clerkUser: {
     ? `${clerkUser.firstName}${clerkUser.lastName ? ' ' + clerkUser.lastName : ''}`
     : null;
 
-  const { data, error } = await supabase
-    .from('users')
-    .upsert(
-      {
-        id: clerkUser.id,
-        email,
-        username: clerkUser.username,
-        display_name: displayName,
-        avatar_url: clerkUser.imageUrl,
-        updated_at: new Date().toISOString(),
+  try {
+    const response = await fetch('/api/create-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      {
-        onConflict: 'id',
-        ignoreDuplicates: false,
-      }
-    )
-    .select()
-    .single();
+      body: JSON.stringify({
+        userId: clerkUser.id,
+        email: email,
+        username: clerkUser.username || null,
+        displayName: displayName,
+        avatarUrl: clerkUser.imageUrl || null,
+      }),
+    });
 
-  if (error) throw error;
-  return data as User;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to sync user: ${errorData.error || 'Unknown error'}`);
+    }
+
+    const { user } = await response.json();
+    return user as User;
+  } catch (error) {
+    console.error('Error syncing user:', error);
+    throw error;
+  }
 }
 
 /**
@@ -62,19 +68,29 @@ export async function getUser(userId: string) {
  * Get user by username or email
  */
 export async function findUserByIdentifier(identifier: string) {
+  // Clean up the identifier - trim whitespace
+  const cleanIdentifier = identifier.trim();
+  console.log('Looking up user with identifier:', JSON.stringify(cleanIdentifier));
+  
+  // Try case-insensitive username match first, then exact email match
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .or(`username.eq.${identifier},email.eq.${identifier}`)
+    .or(`username.ilike.${cleanIdentifier},email.eq.${cleanIdentifier}`)
     .single();
+
+  console.log('Query result:', { data, error });
 
   if (error) {
     if (error.code === 'PGRST116') {
       // No rows returned
+      console.log('No user found with identifier:', cleanIdentifier);
       return null;
     }
+    console.error('Database error looking up user:', error);
     throw error;
   }
+  console.log('Found user:', data);
   return data as User;
 }
 
@@ -115,24 +131,36 @@ export async function updateUserProfile(
 }
 
 /**
- * Update hngr+ membership status
+ * Update hngr+ membership status via server API
+ * This avoids RLS policy issues by using the server-side endpoint
  */
 export async function updatePlusMembership(
   userId: string,
   isPlus: boolean,
   plusExpiresAt?: string | null
 ) {
-  const { data, error } = await supabase
-    .from('users')
-    .update({
-      is_plus: isPlus,
-      plus_expires_at: plusExpiresAt,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId)
-    .select()
-    .single();
+  try {
+    const response = await fetch('/api/user/update-plus-membership', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        isPlus,
+        plusExpiresAt,
+      }),
+    });
 
-  if (error) throw error;
-  return data as User;
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to update plus membership: ${errorData.error || 'Unknown error'}`);
+    }
+
+    const { user } = await response.json();
+    return user as User;
+  } catch (error) {
+    console.error('Error updating plus membership:', error);
+    throw error;
+  }
 }

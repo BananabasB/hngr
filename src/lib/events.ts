@@ -659,9 +659,48 @@ function syncTemplates() {
   templates.push(...coreTemplates, ...userTemplates);
 }
 
-export function applyUserTemplates(simTemplates: SimulationEventTemplate[]) {
-  userTemplates = simTemplates.map(transformTemplate);
-  syncTemplates();
+export async function applyUserTemplates(simTemplates: SimulationEventTemplate[], userId?: string) {
+  // Only apply user templates if user has hngr+ membership
+  if (!userId) {
+    console.warn('No userId provided, skipping custom events');
+    userTemplates = [];
+    syncTemplates();
+    return;
+  }
+
+  try {
+    // Check if user has hngr+ membership
+    const response = await fetch('/api/user/plus-status', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${userId}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to verify hngr+ status, skipping custom events');
+      userTemplates = [];
+      syncTemplates();
+      return;
+    }
+
+    const { isPlus } = await response.json();
+    if (!isPlus) {
+      console.warn('User does not have hngr+ membership, skipping custom events');
+      userTemplates = [];
+      syncTemplates();
+      return;
+    }
+
+    // User has hngr+, apply the templates
+    userTemplates = simTemplates.map(transformTemplate);
+    syncTemplates();
+  } catch (error) {
+    console.error('Error checking hngr+ status:', error);
+    // On error, default to not using custom events for safety
+    userTemplates = [];
+    syncTemplates();
+  }
 }
 
 syncTemplates();

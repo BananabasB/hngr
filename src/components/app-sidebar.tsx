@@ -2,30 +2,17 @@
 
 import * as React from "react";
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
   BowArrow,
   Building2,
   Calendar as CalendarIcon,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PanelLeft,
-  PieChart,
   Settings2,
   Share,
-  SquareTerminal,
-  UserPlus,
   KeyRound,
   Users,
-  Heart,
   BadgeCheck,
-  Smartphone,
   CirclePlus,
-  Calendar,
-  CalendarPlus
+  CalendarPlus,
+  Sparkles
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -63,6 +50,7 @@ const data = {
     { title: "events", url: "/events", icon: CalendarPlus },
     { title: "nominations", url: "/nominations", icon: BadgeCheck },
     { title: "hngr+", url: "/plus", icon: CirclePlus},
+    { title: "pundit", url: "/pundit", icon: Sparkles},
     { title: "share", url: "/share", icon: Share },
     { title: "settings", url: "/settings", icon: Settings2 },
 

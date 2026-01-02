@@ -1,14 +1,19 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/lib/auth';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   SimulationEventTemplate,
   SimulationEventType,
@@ -16,7 +21,7 @@ import {
   TemplateConditionBlock,
   TemplateEffectBlock,
   TemplateOperand,
-} from '@/lib/supabase/types';
+} from "@/lib/supabase/types";
 import {
   Loader2,
   NotebookPen,
@@ -26,28 +31,31 @@ import {
   Plus,
   X,
   Trash2,
-} from 'lucide-react';
-import { Gupter } from 'next/font/google';
+  KeyRound,
+  LoaderPinwheel,
+} from "lucide-react";
+import { Gupter } from "next/font/google";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { SignedOut, SignInButton } from "@clerk/nextjs";
 
-const gupter = Gupter({ weight: '400', subsets: ['latin'] });
+const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const EVENT_TYPES: SimulationEventType[] = [
-  'kill',
-  'kill2',
-  'alliance',
-  'find',
-  'feast',
-  'generic',
-  'training',
-  'combat',
+  "kill",
+  "kill2",
+  "alliance",
+  "find",
+  "feast",
+  "generic",
+  "training",
+  "combat",
 ];
 
 interface TemplatesResponse {
@@ -64,26 +72,26 @@ type FormState = {
 };
 
 const ATTRIBUTE_OPTIONS: { value: TemplateAttribute; label: string }[] = [
-  { value: 'health.physical', label: 'Health · Physical' },
-  { value: 'health.mental', label: 'Health · Mental' },
-  { value: 'food', label: 'Food reserves' },
+  { value: "health.physical", label: "Health · Physical" },
+  { value: "health.mental", label: "Health · Mental" },
+  { value: "food", label: "Food reserves" },
 ];
 
 const COMPARISON_OPTIONS = [
-  { value: '>', label: '>' },
-  { value: '>=', label: '≥' },
-  { value: '<', label: '<' },
-  { value: '<=', label: '≤' },
-  { value: '==', label: '=' },
-  { value: '!=', label: '≠' },
+  { value: ">", label: ">" },
+  { value: ">=", label: "≥" },
+  { value: "<", label: "<" },
+  { value: "<=", label: "≤" },
+  { value: "==", label: "=" },
+  { value: "!=", label: "≠" },
 ];
 
 const createDefaultForm = (): FormState => ({
-  title: '',
+  title: "",
   type: EVENT_TYPES[0],
-  roles: ['instigator', 'target'],
+  roles: ["instigator", "target"],
   text_template:
-    '{{instigator.name}} corners {{target.name}} near the river and spares them at the last second.',
+    "{{instigator.name}} corners {{target.name}} near the river and spares them at the last second.",
   criteria: [],
   effects: [],
 });
@@ -94,29 +102,33 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(createDefaultForm);
-  const [roleDraft, setRoleDraft] = useState('');
+  const [roleDraft, setRoleDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [autoAllianceEffectId, setAutoAllianceEffectId] = useState<string | null>(null);
+  const [autoAllianceEffectId, setAutoAllianceEffectId] = useState<
+    string | null
+  >(null);
 
   const makeId = () =>
-    typeof crypto !== 'undefined' && crypto.randomUUID
+    typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2, 9);
 
   const fetchTemplates = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch('/api/simulation-events?includeMine=true', {
+      const res = await fetch("/api/simulation-events?includeMine=true", {
         headers: {
-          Authorization: user?.id ? `Bearer ${user.id}` : ''
-        }
+          Authorization: user?.id ? `Bearer ${user.id}` : "",
+        },
       });
-      if (!res.ok) throw new Error('Failed to fetch arena events');
+      if (!res.ok) throw new Error("Failed to fetch arena events");
       const data: TemplatesResponse = await res.json();
       setTemplates(data.data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load arena events');
+      setError(
+        err instanceof Error ? err.message : "Failed to load arena events"
+      );
     } finally {
       setLoading(false);
     }
@@ -132,25 +144,36 @@ export default function EventsPage() {
   }, [authLoading, fetchTemplates, isPlus]);
 
   useEffect(() => {
-    if (form.type === 'alliance') {
+    if (form.type === "alliance") {
       const lockedEffect =
         autoAllianceEffectId &&
-        form.effects.find((effect) => effect.id === autoAllianceEffectId && effect.action === 'set_alliance');
+        form.effects.find(
+          (effect) =>
+            effect.id === autoAllianceEffectId &&
+            effect.action === "set_alliance"
+        );
       if (lockedEffect) {
         return;
       }
-      const existingSetAlliance = form.effects.find((effect) => effect.action === 'set_alliance');
+      const existingSetAlliance = form.effects.find(
+        (effect) => effect.action === "set_alliance"
+      );
       if (existingSetAlliance) {
         setAutoAllianceEffectId(existingSetAlliance.id);
         return;
       }
-      const defaultEffect = makeEffect('set_alliance');
-      setForm((prev) => ({ ...prev, effects: [...prev.effects, defaultEffect] }));
+      const defaultEffect = makeEffect("set_alliance");
+      setForm((prev) => ({
+        ...prev,
+        effects: [...prev.effects, defaultEffect],
+      }));
       setAutoAllianceEffectId(defaultEffect.id);
     } else if (autoAllianceEffectId) {
       setForm((prev) => ({
         ...prev,
-        effects: prev.effects.filter((effect) => effect.id !== autoAllianceEffectId),
+        effects: prev.effects.filter(
+          (effect) => effect.id !== autoAllianceEffectId
+        ),
       }));
       setAutoAllianceEffectId(null);
     }
@@ -178,34 +201,34 @@ export default function EventsPage() {
         effect_json: logicPayload,
       };
 
-      const res = await fetch('/api/simulation-events', {
-        method: 'POST',
+      const res = await fetch("/api/simulation-events", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: user?.id ? `Bearer ${user.id}` : ''
+          "Content-Type": "application/json",
+          Authorization: user?.id ? `Bearer ${user.id}` : "",
         },
         body: JSON.stringify(body),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit template');
+        throw new Error(data.error || "Failed to submit template");
       }
 
-      setSuccessMessage('Template added to the arena pool');
+      setSuccessMessage("Template added to the arena pool");
       setForm(createDefaultForm());
-      setRoleDraft('');
+      setRoleDraft("");
       setAutoAllianceEffectId(null);
       await fetchTemplates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit');
+      setError(err instanceof Error ? err.message : "Failed to submit");
     } finally {
       setSubmitting(false);
     }
   };
 
   const approvedTemplates = useMemo(
-    () => templates.filter((t) => t.status === 'approved'),
+    () => templates.filter((t) => t.status === "approved"),
     [templates]
   );
 
@@ -226,9 +249,9 @@ export default function EventsPage() {
     while ((match = regex.exec(form.text_template))) {
       const raw = match[0];
       const inner = match[1].trim();
-      const [role, ...propParts] = inner.split('.');
-      const roleId = role?.trim() || '';
-      const prop = propParts.join('.') || 'name';
+      const [role, ...propParts] = inner.split(".");
+      const roleId = role?.trim() || "";
+      const prop = propParts.join(".") || "name";
       matches.push({
         raw,
         role: roleId,
@@ -241,22 +264,22 @@ export default function EventsPage() {
 
   const isRoleAttributeOperand = (
     operand: TemplateOperand
-  ): operand is Extract<TemplateOperand, { kind: 'role_attribute' }> =>
-    operand.kind === 'role_attribute';
+  ): operand is Extract<TemplateOperand, { kind: "role_attribute" }> =>
+    operand.kind === "role_attribute";
 
   const handleAddRole = () => {
     const cleaned = roleDraft.trim().toLowerCase();
     if (!cleaned) return;
     if (form.roles.includes(cleaned)) {
-      setRoleDraft('');
+      setRoleDraft("");
       return;
     }
     setForm((prev) => ({ ...prev, roles: [...prev.roles, cleaned] }));
-    setRoleDraft('');
+    setRoleDraft("");
   };
 
   const handleRoleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleAddRole();
     }
@@ -268,22 +291,24 @@ export default function EventsPage() {
       roles: prev.roles.filter((r) => r !== role),
       criteria: prev.criteria.filter((condition) => {
         const leftHit =
-          condition.left.kind === 'role_attribute' && condition.left.role === role;
+          condition.left.kind === "role_attribute" &&
+          condition.left.role === role;
         const rightHit =
-          condition.right.kind === 'role_attribute' && condition.right.role === role;
+          condition.right.kind === "role_attribute" &&
+          condition.right.role === role;
         return !leftHit && !rightHit;
       }),
       effects: prev.effects.filter((effect) => {
-        if (effect.action === 'kill' || effect.action === 'adjust_food') {
+        if (effect.action === "kill" || effect.action === "adjust_food") {
           return effect.targetRole !== role;
         }
-        if (effect.action === 'adjust_health') {
+        if (effect.action === "adjust_health") {
           return effect.targetRole !== role;
         }
-        if (effect.action === 'adjust_trust') {
+        if (effect.action === "adjust_trust") {
           return effect.sourceRole !== role && effect.targetRole !== role;
         }
-        if (effect.action === 'set_alliance') {
+        if (effect.action === "set_alliance") {
           return effect.roleA !== role && effect.roleB !== role;
         }
         return true;
@@ -292,18 +317,21 @@ export default function EventsPage() {
   };
 
   const addCondition = () => {
-    const defaultRole = form.roles[0] ?? 'tribute';
+    const defaultRole = form.roles[0] ?? "tribute";
     const newCondition: TemplateConditionBlock = {
       id: makeId(),
       left: {
-        kind: 'role_attribute',
+        kind: "role_attribute",
         role: defaultRole,
-        attribute: 'health.physical',
+        attribute: "health.physical",
       },
-      operator: '>',
-      right: { kind: 'number', value: 50 },
+      operator: ">",
+      right: { kind: "number", value: 50 },
     };
-    setForm((prev) => ({ ...prev, criteria: [...prev.criteria, newCondition] }));
+    setForm((prev) => ({
+      ...prev,
+      criteria: [...prev.criteria, newCondition],
+    }));
   };
 
   const updateCondition = (
@@ -325,50 +353,55 @@ export default function EventsPage() {
     }));
   };
 
-  const makeEffect = (action: TemplateEffectBlock['action']): TemplateEffectBlock => {
-    const defaultRole = form.roles[0] ?? 'tribute';
+  const makeEffect = (
+    action: TemplateEffectBlock["action"]
+  ): TemplateEffectBlock => {
+    const defaultRole = form.roles[0] ?? "tribute";
     const secondaryRole = form.roles[1] ?? defaultRole;
     switch (action) {
-      case 'kill':
-        return { id: makeId(), action: 'kill', targetRole: defaultRole };
-      case 'adjust_health':
+      case "kill":
+        return { id: makeId(), action: "kill", targetRole: defaultRole };
+      case "adjust_health":
         return {
           id: makeId(),
-          action: 'adjust_health',
+          action: "adjust_health",
           targetRole: defaultRole,
-          attribute: 'health.physical',
+          attribute: "health.physical",
           delta: -5,
         };
-      case 'adjust_food':
+      case "adjust_food":
         return {
           id: makeId(),
-          action: 'adjust_food',
+          action: "adjust_food",
           targetRole: defaultRole,
           delta: 1,
         };
-      case 'adjust_trust':
+      case "adjust_trust":
         return {
           id: makeId(),
-          action: 'adjust_trust',
+          action: "adjust_trust",
           sourceRole: defaultRole,
           targetRole: secondaryRole,
           delta: 5,
         };
-      case 'set_alliance':
+      case "set_alliance":
         return {
           id: makeId(),
-          action: 'set_alliance',
+          action: "set_alliance",
           roleA: defaultRole,
           roleB: secondaryRole,
           allied: true,
         };
       default:
-        return { id: makeId(), action: 'kill', targetRole: defaultRole };
+        return { id: makeId(), action: "kill", targetRole: defaultRole };
     }
   };
 
   const addEffect = () => {
-    setForm((prev) => ({ ...prev, effects: [...prev.effects, makeEffect('adjust_health')] }));
+    setForm((prev) => ({
+      ...prev,
+      effects: [...prev.effects, makeEffect("adjust_health")],
+    }));
   };
 
   const updateEffect = (
@@ -377,22 +410,29 @@ export default function EventsPage() {
   ) => {
     setForm((prev) => ({
       ...prev,
-      effects: prev.effects.map((effect) => (effect.id === id ? updater(effect) : effect)),
+      effects: prev.effects.map((effect) =>
+        effect.id === id ? updater(effect) : effect
+      ),
     }));
   };
 
-  const replaceEffectAction = (id: string, action: TemplateEffectBlock['action']) => {
-    if (form.type === 'alliance' && id === autoAllianceEffectId) {
+  const replaceEffectAction = (
+    id: string,
+    action: TemplateEffectBlock["action"]
+  ) => {
+    if (form.type === "alliance" && id === autoAllianceEffectId) {
       return;
     }
     setForm((prev) => ({
       ...prev,
-      effects: prev.effects.map((effect) => (effect.id === id ? makeEffect(action) : effect)),
+      effects: prev.effects.map((effect) =>
+        effect.id === id ? makeEffect(action) : effect
+      ),
     }));
   };
 
   const removeEffect = (id: string) => {
-    if (form.type === 'alliance' && id === autoAllianceEffectId) {
+    if (form.type === "alliance" && id === autoAllianceEffectId) {
       return;
     }
     setForm((prev) => ({
@@ -402,21 +442,27 @@ export default function EventsPage() {
   };
 
   const renderTemplateCard = (template: SimulationEventTemplate) => (
-    <Card key={template.id} className="border border-border/60 bg-card/70 backdrop-blur">
+    <Card
+      key={template.id}
+      className="border border-border/60 bg-card/70 backdrop-blur"
+    >
       <CardHeader className="space-y-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="capitalize">
             {template.type}
           </Badge>
           {template.creator && (
-            <Badge variant="outline" className="border-blue-400 text-blue-400 bg-blue-400/10">
+            <Badge
+              variant="outline"
+              className="border-blue-400 text-blue-400 bg-blue-400/10"
+            >
               community
             </Badge>
           )}
         </div>
         <h3 className="text-xl font-semibold">{template.title}</h3>
         <p className="text-sm text-muted-foreground">
-          Roles: {template.roles.join(', ')}
+          Roles: {template.roles.join(", ")}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -425,7 +471,10 @@ export default function EventsPage() {
         </div>
         {template.creator && (
           <div className="text-xs text-muted-foreground">
-            Authored by {template.creator.display_name || template.creator.username || 'hngr+'}
+            Authored by{" "}
+            {template.creator.display_name ||
+              template.creator.username ||
+              "hngr+"}
           </div>
         )}
       </CardContent>
@@ -435,9 +484,11 @@ export default function EventsPage() {
   if (authLoading || (isPlus && loading)) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <Loader2 className="mx-auto h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-muted-foreground">
-          {authLoading ? 'Checking membership status...' : 'Loading arena events...'}
+        <LoaderPinwheel className="mx-auto h-7 w-7 animate-spin" />
+        <p className="mt-4">
+          {authLoading
+            ? "Checking membership status..."
+            : "Loading arena events..."}
         </p>
       </div>
     );
@@ -450,16 +501,30 @@ export default function EventsPage() {
           <CardHeader>
             <h2 className="text-3xl font-semibold">hngr+ required</h2>
             <p className="text-muted-foreground">
-              you gotta have hngr+ to use this tab. upgrade to unlock arena events.
+              you gotta have hngr+ to use this tab. upgrade to unlock arena
+              events.
             </p>
           </CardHeader>
-          <CardContent className="flex justify-center">
+          <CardContent className="flex gap-2 flex-col justify-center">
             <Button asChild>
               <Link href="/pay/checkout">
                 <Plus className="mr-2 h-4 w-4" />
                 upgrade to hngr+
               </Link>
             </Button>
+
+            <SignedOut>
+              <SignInButton>
+                <Button
+                  className={`justify-center rounded-md py-2 px-4 font-medium transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50`}
+                  variant={"outline"}
+                  aria-label="authenticate"
+                >
+                  <KeyRound className={"h-5 w-5"} />
+                  log in
+                </Button>
+              </SignInButton>
+            </SignedOut>
           </CardContent>
         </Card>
       </div>
@@ -471,20 +536,27 @@ export default function EventsPage() {
       <section className="rounded-3xl border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-8 py-10 text-white shadow-2xl">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.4em] text-slate-300">arena director</p>
-            <h1 className={`${gupter.className} text-5xl font-semibold leading-tight`}>
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-300">
+              arena director
+            </p>
+            <h1
+              className={`${gupter.className} text-5xl font-semibold leading-tight`}
+            >
               create your own story.
             </h1>
             <p className="text-slate-200/80 max-w-2xl">
-              hngr+ members can mint their own narrative beats—kills, alliances, oddball happenings—
-              and the simulator will weave them directly into every shuffle.
+              hngr+ members can mint their own narrative beats—kills, alliances,
+              oddball happenings— and the simulator will weave them directly
+              into every shuffle.
             </p>
           </div>
           <div className="flex flex-col items-start gap-2 rounded-2xl border border-white/20 bg-white/5 p-4">
             <span className="text-sm uppercase tracking-widest text-slate-100">
               live library
             </span>
-            <span className="text-3xl font-semibold">{approvedTemplates.length}</span>
+            <span className="text-3xl font-semibold">
+              {approvedTemplates.length}
+            </span>
             <span className="text-slate-200">active story beats</span>
           </div>
         </div>
@@ -510,7 +582,9 @@ export default function EventsPage() {
         {approvedTemplates.length === 0 ? (
           <Card className="border-dashed text-center py-12">
             <CardContent>
-              <p className="text-muted-foreground">no templates yet. be the first to author one!</p>
+              <p className="text-muted-foreground">
+                no templates yet. be the first to author one!
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -527,13 +601,15 @@ export default function EventsPage() {
         </div>
         {!isPlus ? (
           <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-8 text-center">
-            <p className="text-lg font-medium text-primary mb-2">reserved for hngr+</p>
+            <p className="text-lg font-medium text-primary mb-2">
+              reserved for hngr+
+            </p>
             <p className="text-muted-foreground mb-6">
               upgrade to hngr+ to inject your own storyline into the arena.
             </p>
             <Button asChild>
               <Link href="/pay/checkout">
-                <Plus className="mr-2 h-4 w-4" /> become hngr+
+                <Plus className="mr-2 h-4 w-4" /> get hngr+
               </Link>
             </Button>
           </div>
@@ -545,7 +621,9 @@ export default function EventsPage() {
                 <Input
                   placeholder="Example: Mercy near the river"
                   value={form.title}
-                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
                   required
                 />
               </div>
@@ -556,7 +634,7 @@ export default function EventsPage() {
                     <Button
                       key={type}
                       type="button"
-                      variant={form.type === type ? 'default' : 'outline'}
+                      variant={form.type === type ? "default" : "outline"}
                       size="sm"
                       onClick={() => setForm((prev) => ({ ...prev, type }))}
                       className="capitalize"
@@ -586,7 +664,9 @@ export default function EventsPage() {
                     </span>
                   ))}
                   {form.roles.length === 0 && (
-                    <span className="text-xs text-muted-foreground">add at least one role</span>
+                    <span className="text-xs text-muted-foreground">
+                      add at least one role
+                    </span>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -596,35 +676,51 @@ export default function EventsPage() {
                     onChange={(e) => setRoleDraft(e.target.value)}
                     onKeyDown={handleRoleKeyDown}
                   />
-                  <Button type="button" variant="secondary" onClick={handleAddRole}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddRole}
+                  >
                     add role
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Press <kbd className="rounded border px-1 text-[11px]">Enter</kbd> or click “add role”
-                  to append. Use lowercase names; reference them in the script via{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">{"{{role.property}}"}</code>.
+                  Press{" "}
+                  <kbd className="rounded border px-1 text-[11px]">Enter</kbd>{" "}
+                  or click “add role” to append. Use lowercase names; reference
+                  them in the script via{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">
+                    {"{{role.property}}"}
+                  </code>
+                  .
                 </p>
               </div>
             </div>
             <div className="space-y-2">
-                <label className="text-sm font-medium">script</label>
-                <Textarea
-                  className="min-h-[220px]"
-                  value={form.text_template}
-                  onChange={(e) => setForm((prev) => ({ ...prev, text_template: e.target.value }))}
-                  required
-                />
+              <label className="text-sm font-medium">script</label>
+              <Textarea
+                className="min-h-[220px]"
+                value={form.text_template}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    text_template: e.target.value,
+                  }))
+                }
+                required
+              />
               <div className="rounded-lg border border-border/60 bg-muted/40 p-3 text-xs leading-relaxed space-y-2">
                 <p className="font-medium text-foreground">detected tokens</p>
                 {detectedTokens.length === 0 ? (
-                  <p className="text-muted-foreground">No variables detected yet.</p>
+                  <p className="text-muted-foreground">
+                    No variables detected yet.
+                  </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {detectedTokens.map((token, idx) => (
                       <Badge
                         key={`${token.raw}-${idx}`}
-                        variant={token.validRole ? 'secondary' : 'destructive'}
+                        variant={token.validRole ? "secondary" : "destructive"}
                         className="text-[11px]"
                       >
                         {token.raw}
@@ -633,11 +729,14 @@ export default function EventsPage() {
                   </div>
                 )}
                 <p className="text-muted-foreground">
-                  Use{' '}
+                  Use{" "}
                   <code className="bg-background px-1 py-0.5">
-                    {"{{role.name}} / {{role.pronouns.subject}} / {{role.health.physical}}"}
-                  </code>{' '}
-                  etc. Tokens turn red if the referenced role isn’t in your list.
+                    {
+                      "{{role.name}} / {{role.pronouns.subject}} / {{role.health.physical}}"
+                    }
+                  </code>{" "}
+                  etc. Tokens turn red if the referenced role isn’t in your
+                  list.
                 </p>
               </div>
             </div>
@@ -645,24 +744,38 @@ export default function EventsPage() {
               <div className="space-y-4 rounded-2xl border border-border/60 bg-background/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide">criteria</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide">
+                      criteria
+                    </h3>
                     <p className="text-xs text-muted-foreground">
-                      Optional guards that must pass before this event can trigger.
+                      Optional guards that must pass before this event can
+                      trigger.
                     </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={addCondition}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCondition}
+                  >
                     add condition
                   </Button>
                 </div>
                 {form.criteria.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No criteria added.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No criteria added.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {form.criteria.map((condition) => {
-                      const rightRoleOperand = isRoleAttributeOperand(condition.right)
+                      const rightRoleOperand = isRoleAttributeOperand(
+                        condition.right
+                      )
                         ? condition.right
                         : null;
-                      const leftRoleOperand = isRoleAttributeOperand(condition.left)
+                      const leftRoleOperand = isRoleAttributeOperand(
+                        condition.left
+                      )
                         ? condition.left
                         : null;
                       return (
@@ -676,7 +789,10 @@ export default function EventsPage() {
                               <Switch
                                 checked={Boolean(condition.negate)}
                                 onCheckedChange={(checked) =>
-                                  updateCondition(condition.id, (prev) => ({ ...prev, negate: checked }))
+                                  updateCondition(condition.id, (prev) => ({
+                                    ...prev,
+                                    negate: checked,
+                                  }))
                                 }
                                 className="data-[state=checked]:bg-destructive"
                               />
@@ -694,19 +810,21 @@ export default function EventsPage() {
                           </div>
                           <div className="grid gap-3 md:grid-cols-4 md:[&>*]:min-w-0">
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase text-muted-foreground">role</Label>
+                              <Label className="text-xs uppercase text-muted-foreground">
+                                role
+                              </Label>
                               <Select
                                 value={leftRoleOperand?.role ?? form.roles[0]}
                                 onValueChange={(value) =>
                                   updateCondition(condition.id, (prev) => ({
                                     ...prev,
                                     left: {
-                                      kind: 'role_attribute',
+                                      kind: "role_attribute",
                                       role: value,
                                       attribute:
-                                        prev.left.kind === 'role_attribute'
+                                        prev.left.kind === "role_attribute"
                                           ? prev.left.attribute
-                                          : 'health.physical',
+                                          : "health.physical",
                                     },
                                   }))
                                 }
@@ -724,16 +842,23 @@ export default function EventsPage() {
                               </Select>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase text-muted-foreground">attribute</Label>
+                              <Label className="text-xs uppercase text-muted-foreground">
+                                attribute
+                              </Label>
                               <Select
-                                value={leftRoleOperand?.attribute ?? ATTRIBUTE_OPTIONS[0].value}
+                                value={
+                                  leftRoleOperand?.attribute ??
+                                  ATTRIBUTE_OPTIONS[0].value
+                                }
                                 onValueChange={(value) =>
                                   updateCondition(condition.id, (prev) => ({
                                     ...prev,
                                     left: {
-                                      kind: 'role_attribute',
+                                      kind: "role_attribute",
                                       role:
-                                        prev.left.kind === 'role_attribute' ? prev.left.role : form.roles[0],
+                                        prev.left.kind === "role_attribute"
+                                          ? prev.left.role
+                                          : form.roles[0],
                                       attribute: value as TemplateAttribute,
                                     },
                                   }))
@@ -744,7 +869,10 @@ export default function EventsPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {ATTRIBUTE_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
+                                    <SelectItem
+                                      key={option.value}
+                                      value={option.value}
+                                    >
                                       {option.label}
                                     </SelectItem>
                                   ))}
@@ -752,13 +880,16 @@ export default function EventsPage() {
                               </Select>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase text-muted-foreground">operator</Label>
+                              <Label className="text-xs uppercase text-muted-foreground">
+                                operator
+                              </Label>
                               <Select
                                 value={condition.operator}
                                 onValueChange={(value) =>
                                   updateCondition(condition.id, (prev) => ({
                                     ...prev,
-                                    operator: value as TemplateConditionBlock['operator'],
+                                    operator:
+                                      value as TemplateConditionBlock["operator"],
                                   }))
                                 }
                               >
@@ -767,7 +898,10 @@ export default function EventsPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {COMPARISON_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
+                                    <SelectItem
+                                      key={option.value}
+                                      value={option.value}
+                                    >
                                       {option.label}
                                     </SelectItem>
                                   ))}
@@ -775,23 +909,27 @@ export default function EventsPage() {
                               </Select>
                             </div>
                             <div className="space-y-2">
-                              <Label className="text-xs uppercase text-muted-foreground">compare to</Label>
+                              <Label className="text-xs uppercase text-muted-foreground">
+                                compare to
+                              </Label>
                               <Select
-                                value={rightRoleOperand ? 'role' : 'number'}
+                                value={rightRoleOperand ? "role" : "number"}
                                 onValueChange={(type) =>
                                   updateCondition(condition.id, (prev) => ({
                                     ...prev,
                                     right:
-                                      type === 'number'
+                                      type === "number"
                                         ? {
-                                            kind: 'number',
+                                            kind: "number",
                                             value:
-                                              prev.right.kind === 'number' ? prev.right.value : 0,
+                                              prev.right.kind === "number"
+                                                ? prev.right.value
+                                                : 0,
                                           }
                                         : {
-                                            kind: 'role_attribute',
-                                            role: form.roles[0] ?? 'tribute',
-                                            attribute: 'health.physical',
+                                            kind: "role_attribute",
+                                            role: form.roles[0] ?? "tribute",
+                                            attribute: "health.physical",
                                           },
                                   }))
                                 }
@@ -801,7 +939,9 @@ export default function EventsPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="number">Number</SelectItem>
-                                  <SelectItem value="role">Role attribute</SelectItem>
+                                  <SelectItem value="role">
+                                    Role attribute
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                               {rightRoleOperand ? (
@@ -812,12 +952,12 @@ export default function EventsPage() {
                                       updateCondition(condition.id, (prev) => ({
                                         ...prev,
                                         right: {
-                                          kind: 'role_attribute',
+                                          kind: "role_attribute",
                                           role: value,
                                           attribute:
-                                            prev.right.kind === 'role_attribute'
+                                            prev.right.kind === "role_attribute"
                                               ? prev.right.attribute
-                                              : 'health.physical',
+                                              : "health.physical",
                                         },
                                       }))
                                     }
@@ -839,11 +979,11 @@ export default function EventsPage() {
                                       updateCondition(condition.id, (prev) => ({
                                         ...prev,
                                         right: {
-                                          kind: 'role_attribute',
+                                          kind: "role_attribute",
                                           role:
-                                            prev.right.kind === 'role_attribute'
+                                            prev.right.kind === "role_attribute"
                                               ? prev.right.role
-                                              : form.roles[0] ?? 'tribute',
+                                              : form.roles[0] ?? "tribute",
                                           attribute: value as TemplateAttribute,
                                         },
                                       }))
@@ -854,7 +994,10 @@ export default function EventsPage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {ATTRIBUTE_OPTIONS.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
+                                        <SelectItem
+                                          key={option.value}
+                                          value={option.value}
+                                        >
                                           {option.label}
                                         </SelectItem>
                                       ))}
@@ -865,13 +1008,15 @@ export default function EventsPage() {
                                 <Input
                                   type="number"
                                   value={
-                                    condition.right.kind === 'number' ? condition.right.value : 0
+                                    condition.right.kind === "number"
+                                      ? condition.right.value
+                                      : 0
                                   }
                                   onChange={(e) =>
                                     updateCondition(condition.id, (prev) => ({
                                       ...prev,
                                       right: {
-                                        kind: 'number',
+                                        kind: "number",
                                         value: Number(e.target.value),
                                       },
                                     }))
@@ -890,9 +1035,12 @@ export default function EventsPage() {
               <div className="space-y-4 rounded-2xl border border-border/60 bg-background/60 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide">effects</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide">
+                      effects
+                    </h3>
                     <p className="text-xs text-muted-foreground">
-                      Define what happens when the event fires—injuries, food drops, alliances, etc.
+                      Define what happens when the event fires—injuries, food
+                      drops, alliances, etc.
                     </p>
                   </div>
                   <Button
@@ -911,7 +1059,9 @@ export default function EventsPage() {
                   </p>
                 )}
                 {form.effects.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No effects added.</p>
+                  <p className="text-xs text-muted-foreground">
+                    No effects added.
+                  </p>
                 ) : (
                   <div className="space-y-3">
                     {form.effects.map((effect) => (
@@ -924,18 +1074,31 @@ export default function EventsPage() {
                             <Select
                               value={effect.action}
                               onValueChange={(value) =>
-                                replaceEffectAction(effect.id, value as TemplateEffectBlock['action'])
+                                replaceEffectAction(
+                                  effect.id,
+                                  value as TemplateEffectBlock["action"]
+                                )
                               }
                             >
                               <SelectTrigger className="w-full capitalize">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="kill">Kill target</SelectItem>
-                                <SelectItem value="adjust_health">Adjust health</SelectItem>
-                                <SelectItem value="adjust_food">Adjust food</SelectItem>
-                                <SelectItem value="adjust_trust">Adjust trust</SelectItem>
-                                <SelectItem value="set_alliance">Set alliance</SelectItem>
+                                <SelectItem value="kill">
+                                  Kill target
+                                </SelectItem>
+                                <SelectItem value="adjust_health">
+                                  Adjust health
+                                </SelectItem>
+                                <SelectItem value="adjust_food">
+                                  Adjust food
+                                </SelectItem>
+                                <SelectItem value="adjust_trust">
+                                  Adjust trust
+                                </SelectItem>
+                                <SelectItem value="set_alliance">
+                                  Set alliance
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -950,7 +1113,7 @@ export default function EventsPage() {
                           </Button>
                         </div>
 
-                        {effect.action === 'kill' && (
+                        {effect.action === "kill" && (
                           <div className="grid gap-2 md:grid-cols-2 md:[&>*]:min-w-0">
                             <div className="space-y-1">
                               <Label className="text-xs uppercase text-muted-foreground">
@@ -980,7 +1143,7 @@ export default function EventsPage() {
                           </div>
                         )}
 
-                        {effect.action === 'adjust_health' && (
+                        {effect.action === "adjust_health" && (
                           <div className="grid gap-2 md:grid-cols-3 md:[&>*]:min-w-0">
                             <div className="space-y-1">
                               <Label className="text-xs uppercase text-muted-foreground">
@@ -989,7 +1152,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.targetRole}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, targetRole: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    targetRole: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1013,7 +1179,10 @@ export default function EventsPage() {
                                 onValueChange={(value) =>
                                   updateEffect(effect.id, (prev) => ({
                                     ...prev,
-                                    attribute: value as Exclude<TemplateAttribute, 'food'>,
+                                    attribute: value as Exclude<
+                                      TemplateAttribute,
+                                      "food"
+                                    >,
                                   }))
                                 }
                               >
@@ -1021,13 +1190,16 @@ export default function EventsPage() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {ATTRIBUTE_OPTIONS.filter((attr) => attr.value !== 'food').map(
-                                    (option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        {option.label}
-                                      </SelectItem>
-                                    )
-                                  )}
+                                  {ATTRIBUTE_OPTIONS.filter(
+                                    (attr) => attr.value !== "food"
+                                  ).map((option) => (
+                                    <SelectItem
+                                      key={option.value}
+                                      value={option.value}
+                                    >
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1049,7 +1221,7 @@ export default function EventsPage() {
                           </div>
                         )}
 
-                        {effect.action === 'adjust_food' && (
+                        {effect.action === "adjust_food" && (
                           <div className="grid gap-2 md:grid-cols-2 md:[&>*]:min-w-0">
                             <div className="space-y-1">
                               <Label className="text-xs uppercase text-muted-foreground">
@@ -1058,7 +1230,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.targetRole}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, targetRole: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    targetRole: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1091,7 +1266,7 @@ export default function EventsPage() {
                           </div>
                         )}
 
-                        {effect.action === 'adjust_trust' && (
+                        {effect.action === "adjust_trust" && (
                           <div className="grid gap-2 md:grid-cols-3 md:[&>*]:min-w-0">
                             <div className="space-y-1">
                               <Label className="text-xs uppercase text-muted-foreground">
@@ -1100,7 +1275,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.sourceRole}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, sourceRole: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    sourceRole: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1122,7 +1300,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.targetRole}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, targetRole: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    targetRole: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1155,7 +1336,7 @@ export default function EventsPage() {
                           </div>
                         )}
 
-                        {effect.action === 'set_alliance' && (
+                        {effect.action === "set_alliance" && (
                           <div className="grid gap-2 md:grid-cols-3 md:[&>*]:min-w-0">
                             <div className="space-y-1">
                               <Label className="text-xs uppercase text-muted-foreground">
@@ -1164,7 +1345,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.roleA}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, roleA: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    roleA: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1186,7 +1370,10 @@ export default function EventsPage() {
                               <Select
                                 value={effect.roleB}
                                 onValueChange={(value) =>
-                                  updateEffect(effect.id, (prev) => ({ ...prev, roleB: value }))
+                                  updateEffect(effect.id, (prev) => ({
+                                    ...prev,
+                                    roleB: value,
+                                  }))
                                 }
                               >
                                 <SelectTrigger className="w-full">
@@ -1209,11 +1396,16 @@ export default function EventsPage() {
                                 <Switch
                                   checked={effect.allied}
                                   onCheckedChange={(checked) =>
-                                    updateEffect(effect.id, (prev) => ({ ...prev, allied: checked }))
+                                    updateEffect(effect.id, (prev) => ({
+                                      ...prev,
+                                      allied: checked,
+                                    }))
                                   }
                                 />
                                 <span className="text-xs text-muted-foreground">
-                                  {effect.allied ? 'form alliance' : 'break alliance'}
+                                  {effect.allied
+                                    ? "form alliance"
+                                    : "break alliance"}
                                 </span>
                               </div>
                             </div>
@@ -1223,13 +1415,21 @@ export default function EventsPage() {
                               </p>
                               {effect.roleA && effect.roleB ? (
                                 <p className="text-xs text-muted-foreground">
-                                  <span className="font-medium text-foreground">{effect.roleA}</span>{' '}
-                                  {effect.allied ? 'will ally with' : 'will break alliance with'}{' '}
-                                  <span className="font-medium text-foreground">{effect.roleB}</span>.
+                                  <span className="font-medium text-foreground">
+                                    {effect.roleA}
+                                  </span>{" "}
+                                  {effect.allied
+                                    ? "will ally with"
+                                    : "will break alliance with"}{" "}
+                                  <span className="font-medium text-foreground">
+                                    {effect.roleB}
+                                  </span>
+                                  .
                                 </p>
                               ) : (
                                 <p className="text-xs text-muted-foreground">
-                                  Choose both roles to show how the alliance will change.
+                                  Choose both roles to show how the alliance
+                                  will change.
                                 </p>
                               )}
                             </div>
@@ -1249,7 +1449,11 @@ export default function EventsPage() {
                   <AlertDescription>{successMessage}</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" className="w-full md:w-auto" disabled={submitting}>
+              <Button
+                type="submit"
+                className="w-full md:w-auto"
+                disabled={submitting}
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1263,8 +1467,9 @@ export default function EventsPage() {
                 )}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Templates become available immediately and are mixed with official events on the next
-                shuffle. Keep it cinematic—story beats should run in a couple sentences.
+                Templates become available immediately and are mixed with
+                official events on the next shuffle. Keep it cinematic—story
+                beats should run in a couple sentences.
               </p>
             </div>
           </form>
