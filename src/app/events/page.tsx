@@ -45,6 +45,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SignedOut, SignInButton } from "@clerk/nextjs";
+import { LoadingState } from "@/components/ui/loading-state";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const EVENT_TYPES: SimulationEventType[] = [
@@ -483,13 +484,11 @@ export default function EventsPage() {
 
   if (authLoading || (isPlus && loading)) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <LoaderPinwheel className="mx-auto h-7 w-7 animate-spin" />
-        <p className="mt-4">
-          {authLoading
-            ? "Checking membership status..."
-            : "Loading arena events..."}
-        </p>
+      <div className="container mx-auto px-4 py-16">
+        <LoadingState 
+          size="lg" 
+          text={authLoading ? "Checking membership status..." : "Loading arena events..."}
+        />
       </div>
     );
   }

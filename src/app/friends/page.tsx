@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AvatarWithPlus } from '@/components/ui/avatar-with-plus';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LoadingState } from '@/components/ui/loading-state';
 import {
   getFriends,
   getPendingFriendRequests,
@@ -116,7 +117,7 @@ export default function FriendsPage() {
   if (!isLoaded || (user && loading)) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p>loading friends...</p>
+        <LoadingState text="loading friends..." />
       </div>
     );
   }

@@ -11,6 +11,7 @@ import { useUser } from "@clerk/nextjs";
 import { Gupter } from "next/font/google";
 import { OrderSummary } from "@/components/order-summary";
 import { Stripe as StripeLogo } from "@/components/ui/svgs/stripe";
+import { LoadingState } from "@/components/ui/loading-state";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 const validateEmail = async (email: string, checkout: any) => {
@@ -166,7 +167,7 @@ export default function CheckoutForm() {
         <PaymentElement id="payment-element" />
         <Button disabled={isLoading} id="submit">
           {isLoading || checkoutState.type === "loading" ? (
-            <LoaderPinwheel className="animate-spin" />
+            <LoadingState size="sm" />
           ) : checkoutState.type === "success" ? (
             `pay ${checkoutState.checkout.total.total.amount} now`
           ) : (

@@ -7,6 +7,7 @@ import BasicTest from "@/testing/BasicTest";
 import { useAuth } from "@/lib/auth";
 import { applyUserTemplates } from "@/lib/events";
 import type { SimulationEventTemplate } from "@/lib/supabase/types";
+import { LoadingState } from "@/components/ui/loading-state";
 
 // Define the type for your database structure, e.g., HngrDB
 // You can import this type if it's defined elsewhere, otherwise use 'any' temporarily.
@@ -59,8 +60,10 @@ export default function TimelinePage() {
   // The server renders this simple <div>.
   if (db === null || !customEventsLoaded) {
     return (
-      <div className="p-4 text-center">
-        {authLoading ? 'checking membership...' : customEventsLoaded ? 'loading game data...' : 'loading custom events...'}
+      <div className="p-4 flex justify-center">
+        <LoadingState 
+          text={authLoading ? 'checking membership...' : customEventsLoaded ? 'loading game data...' : 'loading custom events...'}
+        />
       </div>
     );
   }
