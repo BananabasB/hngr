@@ -72,26 +72,46 @@ export async function findUserByIdentifier(identifier: string) {
   const cleanIdentifier = identifier.trim();
   console.log('Looking up user with identifier:', JSON.stringify(cleanIdentifier));
   
-  // Try case-insensitive username match first, then exact email match
-  const { data, error } = await supabase
+  // Try exact email match first (most reliable)
+  const { data: emailData, error: emailError } = await supabase
     .from('users')
     .select('*')
-    .or(`username.ilike.${cleanIdentifier},email.eq.${cleanIdentifier}`)
+    .eq('email', cleanIdentifier)
     .single();
 
-  console.log('Query result:', { data, error });
-
-  if (error) {
-    if (error.code === 'PGRST116') {
-      // No rows returned
-      console.log('No user found with identifier:', cleanIdentifier);
-      return null;
-    }
-    console.error('Database error looking up user:', error);
-    throw error;
+  if (emailData) {
+    console.log('Found user by email:', emailData);
+    return emailData as User;
   }
-  console.log('Found user:', data);
-  return data as User;
+
+  // If email not found, try case-insensitive username match
+  const { data: usernameData, error: usernameError } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('username', cleanIdentifier)
+    .single();
+
+  console.log('Username query result:', { data: usernameData, error: usernameError });
+
+  if (usernameData) {
+    console.log('Found user by username:', usernameData);
+    return usernameData as User;
+  }
+
+  // If still not found, try partial matches for usernames
+  const { data: partialData, error: partialError } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('username', `%${cleanIdentifier}%`)
+    .limit(1);
+
+  if (partialData && partialData.length > 0) {
+    console.log('Found user by partial username:', partialData[0]);
+    return partialData[0] as User;
+  }
+
+  console.log('No user found with identifier:', cleanIdentifier);
+  return null;
 }
 
 /**

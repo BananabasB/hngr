@@ -4,20 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { setupDatabase, type HngrDB, type Tribute } from "@/lib/setup";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Gupter, IBM_Plex_Mono } from "next/font/google";
 import {
-  Copy,
   Download,
-  Share2,
   Check,
-  Upload,
-  FileJson,
   Image as ImageIcon,
-  Loader2,
   Sun,
   Moon,
-  Smartphone
+  Smartphone,
+  BowArrow
 } from "lucide-react";
 import { DeviceSyncDialog } from "@/components/device-sync/device-sync-dialog";
 import { useAppState } from "@/lib/state-context";
@@ -29,10 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import Link from "next/link";
-import { isUserInUK, getUserGeolocation } from "@/lib/geolocation";
+import { simulateGame } from "@/lib/simulation";
 // Dynamic import for dom-to-image-more to avoid Node.js runtime errors
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
@@ -41,222 +33,16 @@ const ibmMono = IBM_Plex_Mono({ weight: ["400", "500", "700"], subsets: ["latin"
 export default function SharePage() {
   const { db, setDb } = useAppState();
   const { isPlus } = useAuth();
-  const [copied, setCopied] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
-  const [exportingAll, setExportingAll] = useState(false);
   const [exportTheme, setExportTheme] = useState<"light" | "dark">("light");
   const [selectedDay, setSelectedDay] = useState<string>("");
-  const [brantSteeleCode, setBrantSteeleCode] = useState("");
-  const [importingBrantSteele, setImportingBrantSteele] = useState(false);
-  const [showImgurWarning, setShowImgurWarning] = useState(false);
-  const [imgurTributes, setImgurTributes] = useState<string[]>([]);
-  const [userLocation, setUserLocation] = useState<string>("");
+  const [removeBranding, setRemoveBranding] = useState(true); // For hngr+ users
   const dayRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
-  const exportData = () => {
-    if (!db) return;
 
-    const dataStr = JSON.stringify(db, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    
-    // Brand-free filename for hngr+ users
-    const filenamePrefix = isPlus ? "simulation" : "hngr-data";
-    link.download = `${filenamePrefix}-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
-  const importFromBrantSteele = async () => {
-    if (!brantSteeleCode.trim()) return;
-    
-    setImportingBrantSteele(true);
-    setImportError(null);
-    
-    try {
-      // Extract code from URL or use direct code
-      const code = brantSteeleCode.includes('://') 
-        ? new URL(brantSteeleCode).searchParams.get('c') 
-        : brantSteeleCode.trim();
-      
-      if (!code) {
-        throw new Error('Invalid BrantSteele URL or code format');
-      }
 
-      // Use server-side API to avoid CORS issues
-      const response = await fetch('/api/brantsteele-import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
-      
-      console.log('BrantSteele API response status:', response.status);
-      console.log('BrantSteele API response headers:', response.headers);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('BrantSteele API error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch data from BrantSteele');
-      }
-      
-      const { data: brantSteeleData } = await response.json();
-      console.log('BrantSteele data received:', brantSteeleData);
-      
-      // Convert BrantSteele data to HNGR format
-      const hngrData = await convertBrantSteeleToHngr(brantSteeleData);
-      
-      // Save to localStorage and update state
-      localStorage.setItem("hngr-db", JSON.stringify(hngrData));
-      setDb(hngrData);
-      setBrantSteeleCode("");
-      setImportError(null);
-    } catch (error) {
-      console.error('Failed to import from BrantSteele:', error);
-      setImportError(error instanceof Error ? error.message : 'Failed to import from BrantSteele');
-    } finally {
-      setImportingBrantSteele(false);
-    }
-  };
 
-  const convertBrantSteeleToHngr = async (brantData: any) => {
-    // Convert BrantSteele format to HNGR format
-    const hngrData: any = {
-      tributes: {} as Record<string, any>,
-      events: {},
-      tributeReferralName: {
-        singular: "tribute",
-        plural: "tributes"
-      },
-      metadata: {
-        importedFrom: 'brantsteele',
-        importedAt: new Date().toISOString(),
-        originalData: brantData
-      }
-    };
-
-    // Convert tributes
-    if (brantData.tributes) {
-      const imgurTributeNames: string[] = [];
-      
-      brantData.tributes.forEach((tribute: any, index: number) => {
-        const tributeId = `tribute_${index + 1}`;
-        
-        // Check if image URL is from Imgur
-        if (tribute.image && tribute.image.includes('imgur.com')) {
-          imgurTributeNames.push(tribute.name || `Tribute ${index + 1}`);
-        }
-        
-        // Infer pronouns based on position: even index (0,2,4...) = male, odd index (1,3,5...) = female
-        // This matches BrantSteele's layout where males are on the left, females on the right
-        const isInferredMale = index % 2 === 0;
-        const getPronouns = (isMale: boolean) => {
-          if (isMale) {
-            return {
-              subject: "he",
-              object: "him",
-              possessive: "his", 
-              reflexive: "himself"
-            };
-          } else {
-            return {
-              subject: "she",
-              object: "her",
-              possessive: "her",
-              reflexive: "herself"
-            };
-          }
-        };
-        
-        hngrData.tributes[tributeId] = {
-          id: tributeId,
-          name: tribute.name || `Tribute ${index + 1}`,
-          pronouns: tribute.pronouns || getPronouns(isInferredMale),
-          image: tribute.image || null,
-          bio: tribute.bio || "",
-          district: tribute.district || Math.floor(Math.random() * 12) + 1,
-          health: { physical: 100, mental: 100 },
-          foodLvl: 5,
-          relationships: {},
-          // Preserve any additional BrantSteele properties but don't override required ones
-          ...(tribute.gender && { gender: tribute.gender }),
-          ...(tribute.skills && { skills: tribute.skills })
-        };
-      });
-      
-      // Show Imgur warning if any tributes have Imgur images and user is in UK
-      if (imgurTributeNames.length > 0) {
-        const isUK = await isUserInUK();
-        if (isUK) {
-          const geo = await getUserGeolocation();
-          setUserLocation(geo.country || 'United Kingdom');
-          setImgurTributes(imgurTributeNames);
-          setShowImgurWarning(true);
-        }
-      }
-    }
-
-    // Initialize relationships for all tributes
-    const allTributeIds = Object.keys(hngrData.tributes);
-    allTributeIds.forEach(id1 => {
-      allTributeIds.forEach(id2 => {
-        if (id1 !== id2) {
-          hngrData.tributes[id1].relationships[id2] = { trust: 0, alliance: false };
-        }
-      });
-    });
-
-    // Convert events if they exist
-    if (brantData.events) {
-      hngrData.events = brantData.events;
-    }
-
-    return hngrData;
-  };
-
-  const copyToClipboard = async () => {
-    if (!db) return;
-
-    try {
-      const dataStr = JSON.stringify(db, null, 2);
-      await navigator.clipboard.writeText(dataStr);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
-  };
-
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const importedData = JSON.parse(content);
-
-        // Basic validation
-        if (!importedData.tributes || !importedData.tributeReferralName) {
-          setImportError("Invalid data format");
-          return;
-        }
-
-        // Save to localStorage and update state
-        localStorage.setItem("hngr-db", JSON.stringify(importedData));
-        setDb(importedData);
-        setImportError(null);
-      } catch (err) {
-        setImportError("Failed to parse JSON file");
-        console.error(err);
-      }
-    };
-    reader.readAsText(file);
-  };
 
   const getTributeCount = () => {
     if (!db) return 0;
@@ -265,14 +51,33 @@ export default function SharePage() {
 
   const getEventCount = () => {
     if (!db) return 0;
-    return Object.values(db.events).flat().length;
+    // Use the same simulation logic as the timeline
+    const simulatedEvents = simulateGame(db);
+    const count = Object.values(simulatedEvents).flat().length;
+    console.log('Event count:', count, 'Simulated events:', simulatedEvents);
+    return count;
+  };
+
+  const getAvailableDays = () => {
+    if (!db) return [];
+    // Use the same simulation logic as the timeline
+    const simulatedEvents = simulateGame(db);
+    return Object.keys(simulatedEvents)
+      .map(Number)
+      .filter(day => simulatedEvents[day] && simulatedEvents[day].length > 0)
+      .sort((a, b) => a - b);
   };
 
   const exportDayAsPNG = async (day: number) => {
+    console.log('Exporting day:', day, 'Element exists:', !!dayRefs.current[day]);
     const element = dayRefs.current[day];
-    if (!element) return;
+    if (!element) {
+      console.error('No element found for day:', day);
+      return;
+    }
 
     try {
+      console.log('Starting PNG export for day:', day);
       // Dynamically import dom-to-image-more to avoid Node.js runtime errors
       // @ts-ignore - dom-to-image-more doesn't have TypeScript definitions
       const domtoimage = (await import("dom-to-image-more")).default;
@@ -281,7 +86,8 @@ export default function SharePage() {
       const clonedElement = element.cloneNode(true) as HTMLElement;
       
       // For hngr+ users, remove hngr branding from the export
-      if (isPlus) {
+      if (isPlus && removeBranding) {
+        console.log('Removing hngr branding for hngr+ user');
         // Remove any elements containing hngr branding
         const brandingElements = clonedElement.querySelectorAll('[data-hngr-branding], .hngr-branding, [class*="hngr"]');
         brandingElements.forEach(el => el.remove());
@@ -328,49 +134,39 @@ export default function SharePage() {
         }
       });
 
+      console.log('Generated blob, size:', blob.size, 'type:', blob.type);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       
       // Brand-free filename for hngr+ users
-      const filenamePrefix = isPlus ? "day" : "hngr-day";
+      const filenamePrefix = (isPlus && removeBranding) ? "day" : "hngr-day";
       link.download = `${filenamePrefix}-${day}-${exportTheme}.png`;
+      console.log('Downloading file:', link.download);
+      
       link.click();
       URL.revokeObjectURL(url);
+      console.log('Export completed successfully');
     } catch (error) {
       console.error("Failed to export PNG:", error);
     }
   };
 
-  const exportAllDaysAsPNG = async () => {
-    if (!db) return;
-    setExportingAll(true);
-
-    const days = Object.keys(db.events).map(Number).sort((a, b) => a - b);
-
-    for (const day of days) {
-      await exportDayAsPNG(day);
-      // Small delay between exports
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-
-    setExportingAll(false);
-  };
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <div className="bg-gradient-to-b from-base-100 via-base-100 text-center justify-center content-center items-center to-sidebar-accent border-b-2 border-border min-h-40 w-full">
-        <h1 className={`${gupter.className} text-7xl`}>share</h1>
+      <div className="bg-gradient-to-b from-base-100 via-base-100 text-center justify-center content-center items-center to-sidebar-accent border-b-2 border-border min-h-32 sm:min-h-40 w-full">
+        <h1 className={`${gupter.className} text-5xl sm:text-7xl`}>share</h1>
       </div>
 
-      <div className="text-center flex flex-col p-6 justify-center gap-6 max-w-2xl mx-auto w-full">
+      <div className="text-center flex flex-col p-4 sm:p-6 justify-center gap-4 sm:gap-6 max-w-2xl mx-auto w-full">
         {/* Device Sync */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Smartphone className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">device sync</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">device sync</h2>
           </div>
-          <p className="text-sm text-muted-foreground mb-6">
+          <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
             transfer your data between devices seamlessly
           </p>
           <DeviceSyncDialog
@@ -385,19 +181,19 @@ export default function SharePage() {
         </Card>
 
         {/* Data Overview */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold">your data</h2>
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4">your data</h2>
           {db ? (
             <div className="grid grid-cols-2 gap-4 text-left">
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">
                   {db.tributeReferralName.plural}
                 </span>
-                <span className="text-3xl font-bold">{getTributeCount()}/24</span>
+                <span className="text-2xl sm:text-3xl font-bold">{getTributeCount()}/24</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-muted-foreground">events</span>
-                <span className="text-3xl font-bold">{getEventCount()}</span>
+                <span className="text-2xl sm:text-3xl font-bold">{getEventCount()}</span>
               </div>
             </div>
           ) : (
@@ -405,224 +201,105 @@ export default function SharePage() {
           )}
         </Card>
 
-        {/* Export Section */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Share2 className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">export data</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            export your {db?.tributeReferralName.plural || "data"} and events to share with others or backup your progress
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={exportData}
-              disabled={!db}
-              className="flex-1 gap-2"
-            >
-              <Download className="w-4 h-4" />
-              download json
-            </Button>
-
-            <Button
-              onClick={copyToClipboard}
-              disabled={!db}
-              variant="outline"
-              className="flex-1 gap-2"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  copy to clipboard
-                </>
-              )}
-            </Button>
-          </div>
-        </Card>
-
-        {/* Import Section */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Upload className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">import data</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            import data from a JSON file. this will replace your current data.
-          </p>
-
-          <label htmlFor="file-upload">
-            <Button
-              variant="secondary"
-              className="w-full gap-2 cursor-pointer"
-              asChild
-            >
-              <span>
-                <FileJson className="w-4 h-4" />
-                choose file
-              </span>
-            </Button>
-            <input
-              id="file-upload"
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="hidden"
-            />
-          </label>
-
-          {importError && (
-            <p className="text-sm text-destructive mt-3">{importError}</p>
-          )}
-        </Card>
-
-        {/* BrantSteele Import Section */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Upload className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">import from BrantSteele</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            import tribute data from BrantSteele's Hunger Games simulator. click "save" on the BrantSteele page, then paste your season code here.
-          </p>
-          <Alert>
-            <AlertTitle>Important Note</AlertTitle>
-            <AlertDescription>
-              BrantSteele imports are experimental. Some data may not transfer perfectly. 
-              We recommend backing up your current data before importing.
-              Event data will not be imported from BrantSteele.
-            </AlertDescription>
-          </Alert>
-
-          <div className="space-y-3 flex flex-col">
-            <InputOTP 
-              value={brantSteeleCode}
-              onChange={(value) => setBrantSteeleCode(value)}
-              maxLength={8}
-              inputMode="text"
-              className="w-full"
-            >
-              <InputOTPGroup className="w-full justify-center">
-                <InputOTPSlot index={0} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={1} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={2} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={3} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={4} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={5} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={6} className="w-16 h-20 text-2xl" />
-                <InputOTPSlot index={7} className="w-16 h-20 text-2xl" />
-              </InputOTPGroup>
-            </InputOTP>
-            
-            <Button
-              onClick={importFromBrantSteele}
-              disabled={!brantSteeleCode.trim() || importingBrantSteele}
-              className="w-full gap-2"
-            >
-              {importingBrantSteele ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  importing...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  import from BrantSteele
-                </>
-              )}
-            </Button>
-          </div>
-
-          {importError && importError.includes('brantsteele') && (
-            <p className="text-sm text-destructive mt-3">{importError}</p>
-          )}
-        </Card>
-
+        
+        
         {/* PNG Export Section */}
-        {db && Object.keys(db.events).length > 0 && (
-          <Card className="p-6">
+        {db && (
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <ImageIcon className="w-5 h-5" />
-              <h2 className="text-xl font-semibold">export as images</h2>
+              <h2 className="text-lg sm:text-xl font-semibold">export as images</h2>
             </div>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-4 sm:mb-6">
               export each day's events as PNG images to share on social media
             </p>
 
-            {/* Theme Toggle */}
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-sm font-medium">export theme:</span>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setExportTheme("light")}
-                  variant={exportTheme === "light" ? "default" : "outline"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Sun className="w-4 h-4" />
-                  light
-                </Button>
-                <Button
-                  onClick={() => setExportTheme("dark")}
-                  variant={exportTheme === "dark" ? "default" : "outline"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Moon className="w-4 h-4" />
-                  dark
-                </Button>
-              </div>
-            </div>
+            {getEventCount() > 0 ? (
+              <>
+                {/* Theme Toggle */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
+                  <span className="text-sm font-medium">export theme:</span>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setExportTheme("light")}
+                      variant={exportTheme === "light" ? "default" : "outline"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <Sun className="w-4 h-4" />
+                      light
+                    </Button>
+                    <Button
+                      onClick={() => setExportTheme("dark")}
+                      variant={exportTheme === "dark" ? "default" : "outline"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <Moon className="w-4 h-4" />
+                      dark
+                    </Button>
+                  </div>
+                </div>
 
-            <Button
-              onClick={exportAllDaysAsPNG}
-              disabled={exportingAll}
-              className="w-full gap-2 mb-4"
-            >
-              {exportingAll ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  exporting all days...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  download all days as PNG
-                </>
-              )}
-            </Button>
+                {/* Branding Toggle for hngr+ users */}
+                {isPlus && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 sm:mb-6">
+                    <span className="text-sm font-medium">branding:</span>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setRemoveBranding(true)}
+                        variant={removeBranding ? "default" : "outline"}
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        brand-free
+                      </Button>
+                      <Button
+                        onClick={() => setRemoveBranding(false)}
+                        variant={!removeBranding ? "default" : "outline"}
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <BowArrow className="w-4 h-4" />
+                        with hngr
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-semibold">or export individual day:</p>
-              <div className="flex gap-2">
-                <Select
-                  value={selectedDay}
-                  onValueChange={(value) => {
-                    setSelectedDay(value);
-                    exportDayAsPNG(Number(value));
-                  }}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="select a day to export" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(db.events)
-                      .map(Number)
-                      .sort((a, b) => a - b)
-                      .map((day) => (
-                        <SelectItem key={day} value={String(day)}>
-                          day {day}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm font-semibold">or export individual day:</p>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedDay}
+                      onValueChange={(value) => {
+                        setSelectedDay(value);
+                        exportDayAsPNG(Number(value));
+                      }}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="select a day to export" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableDays().map((day) => (
+                          <SelectItem key={day} value={String(day)}>
+                            day {day}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6 sm:py-8">
+                <p className="text-muted-foreground text-sm">
+                  no events to export yet. start a simulation to create events that can be exported as images.
+                </p>
               </div>
-            </div>
+            )}
           </Card>
         )}
 
@@ -644,7 +321,7 @@ export default function SharePage() {
                 outline: none !important;
               }
             `}</style>
-            {Object.entries(db.events).map(([day, events]) => {
+            {Object.entries(simulateGame(db)).map(([day, events]) => {
               const isDark = exportTheme === "dark";
               const bgColor = isDark ? "#1f2937" : "#ffffff";
               const textColor = isDark ? "#f3f4f6" : "#1f2937";
@@ -778,50 +455,6 @@ export default function SharePage() {
         )}
       </div>
 
-      {/* Imgur Warning Dialog */}
-      <Dialog open={showImgurWarning} onOpenChange={setShowImgurWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>⚠️ Imgur images detected</DialogTitle>
-            <DialogDescription>
-              <div className="space-y-3">
-                <p>
-                  <strong>important notice for {userLocation} users:</strong> Imgur is blocked in {userLocation} due to the Online Safety Act 2023.
-                </p>
-                <p>
-                  the following tributes have Imgur-hosted images that may not be visible:
-                </p>
-                <ul className="list-disc list-inside space-y-1">
-                  {imgurTributes.map((name, index) => (
-                    <li key={index}>{name}</li>
-                  ))}
-                </ul>
-                <p>
-                  you can still proceed with the import, but the images may not load. consider using alternative image hosts or rehosting the images if you're in {userLocation}.
-                </p>
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    onClick={() => setShowImgurWarning(false)}
-                    className="flex-1"
-                  >
-                    continue anyway
-                  </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowImgurWarning(false)}
-                  >
-                    <Link href="/imgur-access">
-                      learn more
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </div>
   );
 }

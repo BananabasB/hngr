@@ -9,7 +9,7 @@ export async function sendFriendRequest(userId: string, friendIdentifier: string
   // Find the friend by username or email
   const friend = await findUserByIdentifier(friendIdentifier);
   if (!friend) {
-    throw new Error('user not found');
+    throw new Error('user not found - please check the username or email and try again');
   }
 
   if (friend.id === userId) {

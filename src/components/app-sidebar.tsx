@@ -12,7 +12,8 @@ import {
   BadgeCheck,
   CirclePlus,
   CalendarPlus,
-  Sparkles
+  Sparkles,
+  RefreshCcw as Sync
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -52,6 +53,7 @@ const data = {
     { title: "hngr+", url: "/plus", icon: CirclePlus},
     { title: "pundit", url: "/pundit", icon: Sparkles},
     { title: "share", url: "/share", icon: Share },
+    { title: "sync", url: "/sync", icon: Sync },
     { title: "settings", url: "/settings", icon: Settings2 },
 
   ],
