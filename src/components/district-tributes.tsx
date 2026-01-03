@@ -19,6 +19,7 @@ import { PencilLine, Upload } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 import { Tribute } from "@/lib/setup";
 import { Textarea } from "./ui/textarea";
+import { autocompletePronouns } from "@/lib/pronoun-autocomplete";
 
 type Props = {
   tributes: Record<string, Tribute>; // { id: Tribute, ... }
@@ -105,6 +106,19 @@ export function EditTribute({ id }: { id: string }) {
   const [draftName, setDraftName] = React.useState(initialName);
   const [draftPronouns, setDraftPronouns] = React.useState(initialPronouns);
   const [draftBio, setDraftBio] = React.useState(initialBio);
+
+  function handlePronounAutocomplete(value: string, field: keyof typeof draftPronouns) {
+    // Update the current field
+    setDraftPronouns((p) => ({ ...p, [field]: value }));
+    
+    // Try to autocomplete if this is the subject field
+    if (field === 'subject') {
+      const autocompleteResult = autocompletePronouns(value);
+      if (autocompleteResult) {
+        setDraftPronouns(autocompleteResult);
+      }
+    }
+  }
 
   function handleSave() {
     if (!db) return;
@@ -212,28 +226,28 @@ export function EditTribute({ id }: { id: string }) {
             <Input
               value={draftPronouns.subject}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, subject: e.target.value }))
+                handlePronounAutocomplete(e.target.value, 'subject')
               }
               placeholder="they"
             />
             <Input
               value={draftPronouns.object}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, object: e.target.value }))
+                handlePronounAutocomplete(e.target.value, 'object')
               }
               placeholder="them"
             />
             <Input
               value={draftPronouns.possessive}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, possessive: e.target.value }))
+                handlePronounAutocomplete(e.target.value, 'possessive')
               }
               placeholder="their"
             />
             <Input
               value={draftPronouns.reflexive}
               onChange={(e) =>
-                setDraftPronouns((p) => ({ ...p, reflexive: e.target.value }))
+                handlePronounAutocomplete(e.target.value, 'reflexive')
               }
               placeholder="theirs"
             />

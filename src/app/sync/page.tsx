@@ -298,13 +298,9 @@ export default function SyncPage() {
                   <strong>important notice for {userLocation} users:</strong> Imgur is blocked in {userLocation} due to the Online Safety Act 2023.
                 </p>
                 <p>
-                  the following tributes have Imgur-hosted images that may not be visible:
+                  there {imgurTributes.length === 1 ? 'is' : 'are'} {imgurTributes.length} Imgur-hosted tribute image{imgurTributes.length === 1 ? '' : 's'} in this backup that may not be visible in the UK.
                 </p>
-                <ul className="list-disc list-inside space-y-1">
-                  {imgurTributes.map((name, index) => (
-                    <li key={index}>{name}</li>
-                  ))}
-                </ul>
+                
                 <p>
                   you can still proceed with the import, but the images may not load. consider using alternative image hosts or rehosting the images if you're in {userLocation}.
                 </p>
