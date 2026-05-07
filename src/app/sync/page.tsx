@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Download, Upload, FileJson, Copy, Check, Loader2 } from "lucide-react";
 import { useAppState } from "@/lib/state-context";
 import { isUserInUK, getUserGeolocation } from "@/lib/geolocation";
@@ -12,7 +13,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function SyncPage() {
-  const { db, setDb } = useAppState();
+  const { db, setDb, currentSeason } = useAppState();
   
   // Import/Export states
   const [copied, setCopied] = useState(false);
@@ -27,12 +28,26 @@ export default function SyncPage() {
   const exportData = () => {
     if (!db) return;
 
-    const dataStr = JSON.stringify(db, null, 2);
+    const exportData = {
+      ...db,
+      seasonInfo: currentSeason ? {
+        id: currentSeason.id,
+        name: currentSeason.name,
+        description: currentSeason.description,
+        status: currentSeason.status,
+      } : null,
+      exportedAt: new Date().toISOString(),
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `hngr-data-${new Date().toISOString().split('T')[0]}.json`;
+    const filename = currentSeason 
+      ? `hngr-${currentSeason.name.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.json`
+      : `hngr-data-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -184,10 +199,32 @@ export default function SyncPage() {
         <h1 className="text-3xl font-bold">sync & import/export</h1>
         <p className="text-muted-foreground">manage your game data and imports</p>
       </div>
+
+      {/* Season Info */}
+      {currentSeason && (
+        <Card className="mb-6">
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-semibold">Current Season:</h3>
+              <span className="text-lg">{currentSeason.name}</span>
+              <Badge variant={
+                currentSeason.status === 'active' ? 'default' :
+                currentSeason.status === 'completed' ? 'secondary' :
+                currentSeason.status === 'archived' ? 'outline' : 'outline'
+              }>
+                {currentSeason.status}
+              </Badge>
+            </div>
+            {currentSeason.description && (
+              <p className="text-sm text-muted-foreground">{currentSeason.description}</p>
+            )}
+          </div>
+        </Card>
+      )}
       
       <div className="space-y-6">
         {/* Export Section */}
-        <Card className="p-6">
+        <Card data-onboarding="sync" className="p-6">
           <h2 className="text-xl font-semibold mb-4">export data</h2>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">

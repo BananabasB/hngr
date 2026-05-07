@@ -13,7 +13,9 @@ import {
   CirclePlus,
   CalendarPlus,
   Sparkles,
-  RefreshCcw as Sync
+  RefreshCcw as Sync,
+  Trophy,
+  HelpCircle
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -31,6 +33,8 @@ import {
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
 import { SidebarUser } from "./sidebar-user";
+import { SeasonSelector } from "./season-selector";
+import { useOnboarding } from "@/lib/onboarding-context";
 
 const header = {
   items: [
@@ -52,16 +56,17 @@ const data = {
     { title: "nominations", url: "/nominations", icon: BadgeCheck },
     { title: "hngr+", url: "/plus", icon: CirclePlus},
     { title: "pundit", url: "/pundit", icon: Sparkles},
+    { title: "seasons", url: "/seasons", icon: Trophy },
     { title: "share", url: "/share", icon: Share },
     { title: "sync", url: "/sync", icon: Sync },
     { title: "settings", url: "/settings", icon: Settings2 },
-
   ],
 };
 
 export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const { state } = useSidebar();
+  const { startOnboarding } = useOnboarding();
   const isExpanded = state === "expanded";
 
   return (
@@ -85,7 +90,15 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         ))}
       </SidebarHeader>
 
-      <SidebarContent className="items-center list-none px-2">
+      <SidebarContent data-onboarding="sidebar" className="items-center list-none px-2">
+        <SignedIn>
+          {isExpanded && (
+            <div className="py-2 border-b mb-2 w-full">
+              <SeasonSelector className="flex-col items-start gap-2 w-full" />
+            </div>
+          )}
+        </SignedIn>
+
         {data.items.map((item) => (
           <SidebarMenuItem key={item.title} className="w-full">
             <SidebarMenuButton asChild isActive={pathname === item.url}>
@@ -99,6 +112,16 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="gap-2 transition-opacity duration-200 flex flex-col items-start">
+          <SignedIn>
+            <SidebarMenuItem className="w-full list-none">
+              <SidebarMenuButton asChild onClick={startOnboarding}>
+                <button className="flex items-center gap-2 w-full cursor-pointer">
+                  <HelpCircle className="h-4 w-4" />
+                  <span>help</span>
+                </button>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SignedIn>
           <SignedOut>
             <SignInButton>
               <Button

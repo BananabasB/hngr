@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase/server';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const userId = authHeader?.replace('Bearer ', '');
+    const { eventId } = await params;
+    const user = await getAuthenticatedUser();
 
-    if (!userId) {
+    if (!user) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
@@ -22,10 +17,10 @@ export async function POST(
     }
 
     // Check if user can join this event
-    const { data: event, error: eventError } = await supabase
+    const { data: event, error: eventError } = await supabaseAdmin
       .from('custom_events')
       .select('is_public, max_attendees, event_attendees(count)')
-      .eq('id', params.eventId)
+      .eq('id', eventId)
       .single();
 
     if (eventError) throw eventError;
@@ -40,13 +35,13 @@ export async function POST(
 
     // For private events, verify user is hngr+ member
     if (!event.is_public) {
-      const { data: user, error: userError } = await supabase
+      const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
         .select('is_plus, plus_expires_at')
-        .eq('id', userId)
+        .eq('id', user.id)
         .single();
 
-      if (userError || !user?.is_plus || (user.plus_expires_at && new Date(user.plus_expires_at) <= new Date())) {
+      if (userError || !userData?.is_plus || (userData.plus_expires_at && new Date(userData.plus_expires_at) <= new Date())) {
         return NextResponse.json(
           { error: 'hngr+ membership required to join private events' },
           { status: 403 }
@@ -54,11 +49,11 @@ export async function POST(
       }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('event_attendees')
       .insert({
-        event_id: params.eventId,
-        user_id: userId,
+        event_id: eventId,
+        user_id: user.id,
       })
       .select()
       .single();
@@ -85,24 +80,24 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { eventId: string } }
+  { params }: { params: Promise<{ eventId: string }> }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const userId = authHeader?.replace('Bearer ', '');
+    const { eventId } = await params;
+    const user = await getAuthenticatedUser();
 
-    if (!userId) {
+    if (!user) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
       );
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('event_attendees')
       .delete()
-      .eq('event_id', params.eventId)
-      .eq('user_id', userId);
+      .eq('event_id', eventId)
+      .eq('user_id', user.id);
 
     if (error) throw error;
 

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { loadGame, simulateGame } from "@/lib/simulation";
 import { HngrDB, Tribute } from "@/lib/setup";
 import { Gupter } from "next/font/google";
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "./ui/button";
 import { Shuffle, Trash, ChevronLeft, ChevronRight } from "lucide-react";
 import { remove } from "@/lib/localStorage";
+import { useAppState } from "@/lib/state-context-refactored";
 import {
   Dialog,
   DialogTrigger,
@@ -38,10 +39,33 @@ function shuffleArray<T>(arr: T[]) {
 }
 
 export default function EventTimeline({ data }: Props) {
+  const { setDb } = useAppState();
+  
   const [eventsByDay, setEventsByDay] = useState<Record<number, import('@/lib/setup').Event[]>>(() => {
-    // initialize with a fresh simulation run (ignore any saved hngrDb in localStorage)
-    return simulateGame(data);
+    console.log('EventTimeline initializing:', {
+      'data.events': data.events,
+      'typeof data.events': typeof data.events,
+      'data.events keys': data.events ? Object.keys(data.events) : 'none',
+      'data.events length': data.events ? Object.keys(data.events).length : 0
+    });
+    
+    // Check if events exist and have actual content
+    if (data.events && Object.keys(data.events).length > 0) {
+      console.log('Using saved events:', data.events);
+      return data.events;
+    } else {
+      console.log('No saved events found, generating fresh ones');
+      return simulateGame(data);
+    }
   });
+
+  // Save events function - call this explicitly when needed
+  const saveEvents = useCallback(() => {
+    if (setDb && data) {
+      const updatedDb = { ...data, events: eventsByDay };
+      setDb(updatedDb);
+    }
+  }, [setDb, data, eventsByDay]);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -62,17 +86,6 @@ export default function EventTimeline({ data }: Props) {
   const [maxDays, setMaxDays] = useState(10);
   const [enableMobileSwipe, setEnableMobileSwipe] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    // keep localStorage in sync whenever eventsByDay changes
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("events", JSON.stringify(eventsByDay));
-      }
-    } catch (e) {
-      // noop
-    }
-  }, [eventsByDay]);
 
   useEffect(() => {
     // detect mobile device
@@ -133,11 +146,14 @@ export default function EventTimeline({ data }: Props) {
     } catch (e) {}
 
     setEventsByDay(newEvents);
+    saveEvents(); // Save to database after shuffling
   };
 
+  // Only shuffle if no events exist
   useEffect(() => {
-    // on first render, shuffle events to populate new events
-    doShuffle(skipShuffleConfirm || dontRemindAgain);
+    if (!data.events || Object.keys(data.events).length === 0) {
+      doShuffle(skipShuffleConfirm || dontRemindAgain);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

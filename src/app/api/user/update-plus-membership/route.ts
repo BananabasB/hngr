@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const user = await getAuthenticatedUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { userId, isPlus, plusExpiresAt } = await request.json();
 
     if (!userId) {
@@ -27,8 +20,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'isPlus must be a boolean' }, { status: 400 });
     }
 
+    // Ensure the authenticated user is updating their own record or this is a webhook call
+    // You might want to add additional logic here for admin/webhook verification
+    if (userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Update user's plus membership status
-    const { data: user, error: updateError } = await supabaseAdmin
+    const { data: userRecord, error: updateError } = await supabaseAdmin
       .from('users')
       .update({
         is_plus: isPlus,
@@ -44,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update membership', details: updateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({ success: true, user: userRecord });
 
   } catch (error) {
     console.error('Unexpected error in update-plus-membership API:', error);

@@ -1,8 +1,8 @@
 'use client';
 
 import { useUser, useAuth as useClerkAuth } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
-import { supabase, setSupabaseAuth } from '@/lib/supabase/client';
+import { useEffect, useState, useCallback } from 'react';
+import { createSupabaseClientWithToken } from '@/lib/supabase/clerk-client';
 import { User as SupabaseUser } from '@/lib/supabase/types';
 
 export function useAuth() {
@@ -10,6 +10,11 @@ export function useAuth() {
   const { getToken } = useClerkAuth();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Stabilize the getToken function to prevent dependency array changes
+  const stableGetToken = useCallback(() => {
+    return getToken({ template: 'supabase' });
+  }, [getToken]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -22,15 +27,15 @@ export function useAuth() {
       }
 
       try {
+        // Get the Clerk token and create an authenticated Supabase client
+        const token = await stableGetToken();
+        const supabase = token ? createSupabaseClientWithToken(token) : null;
+        
         if (!supabase) {
-          throw new Error('Supabase client not initialized');
+          throw new Error('Failed to create authenticated Supabase client');
         }
 
-        // Get the Clerk token and create an authenticated Supabase client
-        const token = await getToken({ template: 'supabase' });
-        const supabaseClient = token ? setSupabaseAuth(token) : supabase;
-
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', clerkUser.id)
@@ -79,7 +84,6 @@ export function useAuth() {
           message: error instanceof Error ? error.message : 'Unknown error',
           userId: clerkUser?.id,
           isLoaded,
-          hasSupabase: !!supabase
         });
         setUser(null);
       } finally {
@@ -88,7 +92,7 @@ export function useAuth() {
     };
 
     fetchUser();
-  }, [clerkUser, isLoaded]);
+  }, [clerkUser, isLoaded, stableGetToken]);
 
   return {
     user,

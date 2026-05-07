@@ -1,13 +1,13 @@
 // src/app/timeline/page.tsx
 "use client"
-import { useState, useEffect } from 'react'; // <--- Import hooks
-import { load } from "@/lib/localStorage";
+import { useState, useEffect } from 'react';
 import EventTimeline from "@/components/events";
 import BasicTest from "@/testing/BasicTest";
 import { useAuth } from "@/lib/auth";
 import { applyUserTemplates } from "@/lib/events";
 import type { SimulationEventTemplate } from "@/lib/supabase/types";
 import { LoadingState } from "@/components/ui/loading-state";
+import { useAppState } from "@/lib/state-context-refactored";
 
 // Define the type for your database structure, e.g., HngrDB
 // You can import this type if it's defined elsewhere, otherwise use 'any' temporarily.
@@ -15,12 +15,10 @@ type HngrDB = any;
 
 export default function TimelinePage() {
   const { user, loading: authLoading, isPlus } = useAuth();
-  // 1. Initialize the database state to null/undefined. 
-  // This is the value the server will use for its initial render.
-  const [db, setDb] = useState<HngrDB | null>(null);
+  const { db, currentSeason } = useAppState();
   const [customEventsLoaded, setCustomEventsLoaded] = useState(false);
-
-  // Load custom events when user is available and has hngr+
+  
+  // Don't wait for custom events if user doesn't have hngr+
   useEffect(() => {
     if (authLoading || !user || !isPlus) {
       setCustomEventsLoaded(true); // Skip custom events loading
@@ -49,13 +47,6 @@ export default function TimelinePage() {
     loadCustomEvents();
   }, [authLoading, user, isPlus]);
 
-  // 2. Use useEffect to run the client-side-only load() function on mount.
-  useEffect(() => {
-    // This code only runs in the browser, after hydration.
-    const clientDb = load("hngr-db");
-    setDb(clientDb);
-  }, []); // The empty dependency array ensures this runs only once on mount.
-
   // 3. Render a loading state if the database hasn't been loaded yet or custom events are still loading.
   // The server renders this simple <div>.
   if (db === null || !customEventsLoaded) {
@@ -71,6 +62,12 @@ export default function TimelinePage() {
   // 4. Render the full component once the client data is available.
   return (
     <div>
+      {currentSeason && (
+        <div className="mb-4 p-4 bg-gray-100 rounded text-sm">
+          <div>Showing timeline for: <strong>{currentSeason.name}</strong></div>
+          <div>Season ID: {currentSeason.id}</div>
+        </div>
+      )}
       <EventTimeline data={db} />
     </div>
   );

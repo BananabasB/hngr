@@ -1,0 +1,162 @@
+import { HngrDB, setupDatabase } from './setup';
+import type { Season, SeasonWithGames, Game } from './supabase/season-types';
+import { createClient } from '@supabase/supabase-js';
+import { Database } from './database.types';
+
+export class StorageService {
+  private static instance: StorageService;
+  private supabase: ReturnType<typeof createClient<Database>> | null = null;
+  private currentSeasonId: string | null = null;
+  private currentGameId: string | null = null;
+
+  private constructor() {}
+
+  static getInstance(): StorageService {
+    if (!StorageService.instance) {
+      StorageService.instance = new StorageService();
+    }
+    return StorageService.instance;
+  }
+
+  setSupabaseClient(supabase: ReturnType<typeof createClient<Database>>) {
+    this.supabase = supabase;
+  }
+
+  // Season Management
+  async getCurrentSeason(): Promise<Season | null> {
+    if (!this.supabase) return null;
+    
+    if (!this.currentSeasonId) {
+      const saved = localStorage.getItem('current-season-id');
+      if (saved) {
+        this.currentSeasonId = saved;
+      }
+    }
+
+    if (!this.currentSeasonId) return null;
+
+    try {
+      const { data, error } = await this.supabase
+        .from('seasons')
+        .select('*')
+        .eq('id', this.currentSeasonId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Failed to get current season:', error);
+      return null;
+    }
+  }
+
+  async setCurrentSeason(season: Season | null) {
+    if (season) {
+      this.currentSeasonId = season.id;
+      localStorage.setItem('current-season-id', season.id);
+    } else {
+      this.currentSeasonId = null;
+      localStorage.removeItem('current-season-id');
+    }
+  }
+
+  // Game Management
+  async getCurrentGame(): Promise<Game | null> {
+    if (!this.currentSeasonId) return null;
+
+    try {
+      const { data, error } = await this.supabase
+        .from('games')
+        .select('*')
+        .eq('season_id', this.currentSeasonId)
+        .eq('is_current', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found"
+      return data;
+    } catch (error) {
+      console.error('Failed to get current game:', error);
+      return null;
+    }
+  }
+
+  async setCurrentGame(gameId: string) {
+    try {
+      // First get the game to find its season
+      const { data: game, error: fetchError } = await this.supabase
+        .from('games')
+        .select('season_id')
+        .eq('id', gameId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!game?.season_id) throw new Error('Game must belong to a season');
+
+      // Update all games in season to not be current
+      await this.supabase
+        .from('games')
+        .update({ is_current: false })
+        .eq('season_id', game.season_id);
+
+      // Set this game as current
+      const { error } = await this.supabase
+        .from('games')
+        .update({ is_current: true })
+        .eq('id', gameId);
+
+      if (error) throw error;
+
+      this.currentGameId = gameId;
+    } catch (error) {
+      console.error('Failed to set current game:', error);
+      throw error;
+    }
+  }
+
+  // Database Management
+  async getDatabase(): Promise<HngrDB> {
+    const currentGame = await this.getCurrentGame();
+    
+    if (currentGame?.tribute_data) {
+      return {
+        tributeReferralName: currentGame.tribute_data.tributeReferralName || { singular: "tribute", plural: "tributes" },
+        tributes: currentGame.tribute_data.tributes || {},
+        events: currentGame.tribute_data.events || {},
+      };
+    }
+
+    // Return default database if no game or no tribute data
+    return setupDatabase();
+  }
+
+  async saveDatabase(db: HngrDB): Promise<void> {
+    const currentGame = await this.getCurrentGame();
+    if (!currentGame) {
+      throw new Error('No current game to save to');
+    }
+
+    try {
+      const { error } = await this.supabase
+        .from('games')
+        .update({
+          tribute_data: {
+            tributeReferralName: db.tributeReferralName,
+            tributes: db.tributes,
+            events: db.events,
+          }
+        })
+        .eq('id', currentGame.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to save database:', error);
+      throw error;
+    }
+  }
+
+  // Utility methods
+  clearCache() {
+    this.currentSeasonId = null;
+    this.currentGameId = null;
+  }
+}

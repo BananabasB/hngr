@@ -11,13 +11,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { load } from "@/lib/localStorage";
-import { HngrDB } from "@/lib/setup";
+import { useAppState } from "@/lib/state-context-refactored";
+import { HngrDB, Tribute } from "@/lib/setup";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { PencilLine, Upload } from "lucide-react";
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
-import { Tribute } from "@/lib/setup";
 import { Textarea } from "./ui/textarea";
 import { autocompletePronouns } from "@/lib/pronoun-autocomplete";
 
@@ -78,7 +77,7 @@ export function DistrictTributes({ tributes }: Props) {
 }
 
 export function EditTribute({ id }: { id: string }) {
-  const db = load<HngrDB>("hngr-db");
+  const { db, setDb } = useAppState();
   const singular = db?.tributeReferralName.singular ?? "tribute";
 
   // Find the tribute object directly by id
@@ -121,9 +120,13 @@ export function EditTribute({ id }: { id: string }) {
   }
 
   function handleSave() {
-    if (!db) return;
+    if (!db || !setDb) return;
 
-    const t = db.tributes[id];
+    const updatedDb: HngrDB = { 
+      ...db,
+      tributes: { ...db.tributes }
+    };
+    const t = updatedDb.tributes[id];
     if (t) {
       t.name = draftName;
       t.image = draftImage;
@@ -131,11 +134,10 @@ export function EditTribute({ id }: { id: string }) {
       t.bio = draftBio;
     }
 
-    console.log("all tributes", db.tributes);
-    console.log("count", Object.keys(db.tributes).length);
+    console.log("all tributes", updatedDb.tributes);
+    console.log("count", Object.keys(updatedDb.tributes).length);
 
-    localStorage.setItem("hngr-db", JSON.stringify(db));
-    window.location.reload();
+    setDb(updatedDb);
   }
 
   return (

@@ -12,12 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { DistrictTributes } from "@/components/district-tributes";
-import { useAppState } from "@/lib/state-context";
+import { Badge } from "@/components/ui/badge";
+import { useAppState } from "@/lib/state-context-refactored";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 export default function Home() {
-  const { db, updateReferralName } = useAppState();
+  const { db, updateReferralName, currentSeason } = useAppState();
   const [referralKey, setReferralKey] = useState("tributes");
 
   // Update referral key when db changes
@@ -46,11 +47,23 @@ const handleChange = (value: string) => {
 
   return (
     <div className="w-full flex flex-col gap-3">
-      <div className="bg-gradient-to-b from-base-100 via-base-100 text-center justify-center content-center items-center to-sidebar-accent border-b-2 border-border min-h-40 w-full">
+      <div data-onboarding="districts" className="bg-gradient-to-b from-base-100 via-base-100 text-center justify-center content-center items-center to-sidebar-accent border-b-2 border-border min-h-40 w-full">
         <h1 className={`${gupter.className} text-7xl`}>districts</h1>
+        {currentSeason && (
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Badge variant="outline">{currentSeason.name}</Badge>
+            <Badge variant={
+              currentSeason.status === 'active' ? 'default' :
+              currentSeason.status === 'completed' ? 'secondary' :
+              currentSeason.status === 'archived' ? 'outline' : 'outline'
+            }>
+              {currentSeason.status}
+            </Badge>
+          </div>
+        )}
       </div>
       <div className="text-center flex flex-col p-3 justify-center gap-2">
-        <div className="flex w-full  items-center content-center justify-center gap-2">
+        <div data-onboarding="tribute-naming" className="flex w-full  items-center content-center justify-center gap-2">
           <p>people that participate are called:</p>
           <DropdownMenu>
             <DropdownMenuTrigger className="flex cursor-pointer flex-row gap-2">

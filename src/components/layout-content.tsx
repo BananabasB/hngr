@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarPersistence } from "@/lib/sidebar-persistence";
 import { useAppState } from "@/lib/state-context";
+import { OnboardingOverlay } from "@/components/onboarding-overlay";
 
 interface LayoutContentProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ export function LayoutContent({ children, defaultOpen }: LayoutContentProps) {
         <main className="flex-1 bg-background h-screen overflow-y-auto">
           {children}
         </main>
+        <OnboardingOverlay />
       </SidebarProvider>
     </div>
   );
