@@ -71,7 +71,9 @@ export function useAuth() {
   return {
     user,
     loading: loading || !isLoaded,
-    isPlus: Boolean((user as (SupabaseUser & { isPlus?: boolean }) | null)?.is_plus ?? (user as (SupabaseUser & { isPlus?: boolean }) | null)?.isPlus),
+    isPlus: isHngrPlusEnabled()
+      ? Boolean((user as (SupabaseUser & { isPlus?: boolean }) | null)?.is_plus ?? (user as (SupabaseUser & { isPlus?: boolean }) | null)?.isPlus)
+      : true,
     plusExpiresAt: (user as (SupabaseUser & { plusExpiresAt?: string | null }) | null)?.plus_expires_at ?? (user as (SupabaseUser & { plusExpiresAt?: string | null }) | null)?.plusExpiresAt ?? null,
   };
 }

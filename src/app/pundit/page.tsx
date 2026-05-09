@@ -9,6 +9,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
+import { isHngrPlusEnabled } from "@/lib/plus";
 import { usePunditRuntime } from "@/lib/pundit-runtime";
 
 export default function PunditPage() {
@@ -27,7 +28,7 @@ export default function PunditPage() {
             </CardHeader>
           </Card>
         </div>
-      ) : !user.isPlus ? (
+      ) : isHngrPlusEnabled() && !user.isPlus ? (
         <div className="container mx-auto px-4 py-16">
           <Card className="mx-auto max-w-2xl border-dashed border-primary/40 bg-card/80 text-center">
             <CardHeader>
