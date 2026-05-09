@@ -117,6 +117,8 @@ export function createStateBackup(state: HngrDB): HngrDB {
         events.map(event => ({ ...event })),
       ])
     ),
+    depot: { ...state.depot },
+    alliances: { ...state.alliances },
   };
 }
 

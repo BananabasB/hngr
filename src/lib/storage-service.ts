@@ -127,6 +127,8 @@ export class StorageService {
         tributeReferralName: currentGame.tribute_data.tributeReferralName || { singular: "tribute", plural: "tributes" },
         tributes: currentGame.tribute_data.tributes || {},
         events: currentGame.tribute_data.events || {},
+        depot: currentGame.tribute_data.depot || { presetId: "balanced" },
+        alliances: currentGame.tribute_data.alliances || {},
       };
     }
 

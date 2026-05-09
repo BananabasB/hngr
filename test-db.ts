@@ -1,15 +1,15 @@
-import pg from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
-const client = new pg.Client({
-  connectionString: "YOUR_DATABASE_URL_FROM_ENV",
-});
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+
+const client = createClient(supabaseUrl, supabaseAnonKey);
 
 console.log("Checking connection...");
 try {
-  await client.connect();
-  const res = await client.query('SELECT NOW()');
-  console.log("Success! Database time:", res.rows[0]);
-  await client.end();
+  const { data, error } = await client.rpc('now');
+  if (error) throw error;
+  console.log("Success! Database time:", data);
 } catch (err) {
   console.error("Connection failed:", err);
   process.exit(1);

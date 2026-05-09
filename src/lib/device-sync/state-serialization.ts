@@ -44,6 +44,8 @@ export async function serializeState(db: HngrDB): Promise<SerializedState> {
     tributeReferralName: { ...db.tributeReferralName },
     tributes: {},
     events: {},
+    depot: { ...db.depot },
+    alliances: { ...db.alliances },
   };
 
   // Serialize tributes with relationships
@@ -114,6 +116,8 @@ export async function deserializeState(serialized: SerializedState): Promise<Hng
         events.map(event => ({ ...event })),
       ])
     ),
+    depot: { ...serialized.data.depot },
+    alliances: { ...serialized.data.alliances },
   };
 }
 

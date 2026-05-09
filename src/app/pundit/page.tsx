@@ -1,7 +1,7 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { SignInButton } from "@clerk/nextjs";
+import { Show, SignInButton } from "@clerk/nextjs";
 import { KeyRound, Plus } from "lucide-react";
 import Link from "next/link";
 
