@@ -23,16 +23,11 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useAppState } from "@/lib/state-context-refactored";
-import type { Season, SeasonWithGames, UpdateSeasonRequest } from "@/lib/supabase/season-types";
-import { SeasonService } from "@/lib/supabase/services/seasons";
-import { DebugAuthButton } from "@/components/debug-auth-button";
+import type { Season } from "@/lib/supabase/season-types";
 import Link from "next/link";
-import { useAuth, useUser } from "@clerk/nextjs";
 
 export default function SeasonsPage() {
   const { seasons, currentSeason, setCurrentSeason, refreshSeasons, createSeason } = useAppState();
-  const { getToken } = useAuth();
-  const { user } = useUser();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -69,27 +64,28 @@ export default function SeasonsPage() {
   };
 
   const handleEditSeason = async () => {
-    if (!editingSeason || !editSeasonName.trim() || !user?.id) return;
+    if (!editingSeason || !editSeasonName.trim()) return;
 
     setIsLoading(true);
     try {
-      const updateData: UpdateSeasonRequest = {
+      const updateData = {
         name: editSeasonName.trim(),
         description: editSeasondescription.trim() || undefined,
       };
 
-      const token = await getToken({ template: 'supabase' });
-      if (!token) {
-        throw new Error('No authentication token available');
+      const response = await fetch(`/api/seasons/${editingSeason.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update season (${response.status})`);
       }
 
-      const { createSupabaseClientWithToken } = await import('@/lib/supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
-
-      const updatedSeason = await SeasonService.updateSeason(supabaseClient, user.id, editingSeason.id, updateData);
+      const updatedSeason: Season = await response.json();
       await refreshSeasons();
 
-      // Update current season if it was the one being edited
       if (currentSeason?.id === editingSeason.id) {
         setCurrentSeason(updatedSeason);
       }
@@ -111,41 +107,16 @@ export default function SeasonsPage() {
   };
 
   const handleDeleteSeason = async () => {
-    if (!seasonToDelete || !user?.id) return;
-
-    console.log('=== DELETE SEASON START ===');
-    console.log('Season ID:', seasonToDelete);
-    console.log('User:', user);
+    if (!seasonToDelete) return;
 
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) {
-        throw new Error('No authentication token available');
+      const response = await fetch(`/api/seasons/${seasonToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete season (${response.status})`);
       }
-
-      // Debug: Check token contents
-      const tokenParts = token.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        console.log('Token payload:', {
-          sub: payload.sub,
-          aud: payload.aud,
-          role: payload.role,
-          exp: payload.exp,
-          iat: payload.iat
-        });
-      }
-
-      const { createSupabaseClientWithToken } = await import('@/lib/supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
-
-      // Debug: Check auth status
-      const { data: authData, error: authError } = await supabaseClient.auth.getUser();
-      console.log('Supabase auth check:', { authData, authError });
-
-      console.log('Calling deleteSeason with user.id:', user.id);
-      await SeasonService.deleteSeason(supabaseClient, user.id, seasonToDelete);
-      console.log('Season deleted successfully');
 
       await refreshSeasons();
 
@@ -157,14 +128,9 @@ export default function SeasonsPage() {
       setDeleteDialogOpen(false);
       setSeasonToDelete(null);
     } catch (error) {
-      console.error("Failed to delete season - detailed error:", {
-        error,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      console.error("Failed to delete season:", error);
       alert(`Failed to delete season: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    console.log('=== DELETE SEASON END ===');
   };
 
   const openEditDialog = (season: Season) => {

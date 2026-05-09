@@ -185,15 +185,17 @@ export async function acceptNomination(nominationId: string, userId: string) {
 
   if (error) throw error;
 
-  // Create notification for nominator
+  // Create notification for nominator if they exist
   const nomination = data as Nomination;
-  await supabase.from('notifications').insert({
-    user_id: nomination.nominator_id,
-    type: 'nomination_accepted',
-    title: 'nomination accepted',
-    message: `your nomination was accepted!`,
-    link: '/nominations',
-  });
+  if (nomination.nominator_id) {
+    await supabase.from('notifications').insert({
+      user_id: nomination.nominator_id,
+      type: 'nomination_accepted',
+      title: 'nomination accepted',
+      message: `your nomination was accepted!`,
+      link: '/nominations',
+    });
+  }
 
   return nomination;
 }
@@ -214,15 +216,17 @@ export async function rejectNomination(nominationId: string, userId: string) {
 
   if (error) throw error;
 
-  // Create notification for nominator
+  // Create notification for nominator if they exist
   const nomination = data as Nomination;
-  await supabase.from('notifications').insert({
-    user_id: nomination.nominator_id,
-    type: 'nomination_rejected',
-    title: 'nomination declined',
-    message: `your nomination was declined`,
-    link: '/nominations',
-  });
+  if (nomination.nominator_id) {
+    await supabase.from('notifications').insert({
+      user_id: nomination.nominator_id,
+      type: 'nomination_rejected',
+      title: 'nomination declined',
+      message: `your nomination was declined`,
+      link: '/nominations',
+    });
+  }
 
   return nomination;
 }

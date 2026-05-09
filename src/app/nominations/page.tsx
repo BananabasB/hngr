@@ -19,7 +19,7 @@ import {
 import { syncUser } from '@/lib/supabase/services/users';
 import type { NominationWithDetails } from '@/lib/supabase/types';
 import { useRouter } from 'next/navigation';
-import { Plus, Inbox, Send } from 'lucide-react';
+import { Plus, Inbox, Send, Link2 } from 'lucide-react';
 import { NotAuthenticated } from '@/components/not-authenticated';
 import { useAuth } from '@/lib/auth';
 
@@ -33,6 +33,7 @@ export default function NominationsPage() {
   const [stats, setStats] = useState({ sent: 0, received: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
   const [voteStatuses, setVoteStatuses] = useState<Record<string, boolean>>({});
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded) {
@@ -173,6 +174,20 @@ export default function NominationsPage() {
     await loadData();
   };
 
+  const generateNominationLink = () => {
+    if (typeof window === 'undefined' || !user) return '';
+    return `${window.location.origin}/public-nominate?recipient=${user?.id || ''}`;
+  };
+
+  const handleCopyLink = async () => {
+    if (!user) return;
+    const link = generateNominationLink();
+    if (!link) return;
+    await navigator.clipboard.writeText(link);
+    setCopiedLink(link);
+    window.setTimeout(() => setCopiedLink(null), 2000);
+  };
+
   if (!isLoaded || (user && loading)) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -195,10 +210,16 @@ export default function NominationsPage() {
             manage tribute nominations from your friends
           </p>
         </div>
-        <Button onClick={() => router.push('/nominate')}>
-          <Plus className="mr-2 h-4 w-4" />
-          new nomination
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCopyLink}>
+            <Link2 className="mr-2 h-4 w-4" />
+            {copiedLink ? 'link copied' : 'copy nomination link'}
+          </Button>
+          <Button onClick={() => router.push('/nominate')}>
+            <Plus className="mr-2 h-4 w-4" />
+            new nomination
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

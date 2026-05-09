@@ -1,6 +1,5 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { cookies } from "next/headers";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -9,11 +8,13 @@ import { SupabaseProvider } from "@/components/supabase-provider-final";
 import { StateProvider } from "@/lib/state-context-refactored";
 import { OnboardingProvider } from "@/lib/onboarding-context";
 import { LayoutContent } from "@/components/layout-content";
+import { IBM_Plex_Mono } from "next/font/google";
 
-const ibmMono = IBM_Plex_Mono({
-  variable: "--font-ibm-mono",
+const ibmPlexMono = IBM_Plex_Mono({
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
+  style: "normal",
   subsets: ["latin"],
-  weight: ["500", "700"],
+  variable: "--font-ibm-mono",
 });
 
 export const metadata: Metadata = {
@@ -31,7 +32,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${ibmMono.className} ${ibmMono.variable} antialiased`}>
+      <body className={`${ibmPlexMono.variable} font-mono antialiased`}>
         <ClerkProvider>
           <SupabaseProvider>
             <ThemeProvider

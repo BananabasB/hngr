@@ -1,69 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from "stripe";
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
 const stripeKey = process.env.STRIPE_KEY;
-if (!stripeKey) {
-    throw new Error('STRIPE_KEY environment variable is not set.');
-}
 
-const stripe = new Stripe(stripeKey, {
-  apiVersion: "2025-11-17.clover"
-});
+async function getStripe() {
+  if (!stripeKey) return null;
+  const { default: Stripe } = await import('stripe');
+  return new Stripe(stripeKey, { apiVersion: '2025-11-17.clover' });
+}
 
 export async function GET(request: NextRequest) {
   try {
+    if (!isHngrPlusEnabled()) {
+      return NextResponse.json({ status: 'complete', payment_status: 'paid', payment_intent_id: '', payment_intent_status: 'succeeded' });
+    }
+
+    const stripe = await getStripe();
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
+    }
+
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("session_id");
+    const sessionId = searchParams.get('session_id');
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent", "customer"],
-    }) as Stripe.Checkout.Session & { 
-      payment_intent: Stripe.PaymentIntent;
-      customer?: Stripe.Customer;
-    };
+      expand: ['payment_intent', 'customer'],
+    }) as any;
 
-    // If payment is complete, grant hngr+ status
     if (session.status === 'complete' && session.payment_status === 'paid') {
-      // Get user ID from session metadata or customer email
-      let userId = session.metadata?.user_id;
-      
-      if (!userId && session.customer) {
-        // Try to find user by customer email
-        const customer = session.customer as Stripe.Customer;
+      let userId = session.metadata?.user_id ?? null;
+
+      if (!userId && session.customer && typeof session.customer !== 'string') {
+        const customer = session.customer as any;
         if (customer.email) {
-          const supabase = createSupabaseServerClient();
-          if (supabase) {
-            const { data: user } = await supabase
-              .from('users')
-              .select('id')
-              .eq('email', customer.email)
-              .single();
-            
-            userId = user?.id;
-          }
+          const user = await db.select({ id: users.id }).from(users).where(eq(users.email, customer.email)).limit(1);
+          userId = user[0]?.id ?? null;
         }
       }
 
       if (userId) {
-        const supabase = createSupabaseServerClient();
-        if (supabase) {
-          // Grant hngr+ status (1 year from now)
-          const plusExpiresAt = new Date();
-          plusExpiresAt.setFullYear(plusExpiresAt.getFullYear() + 1);
-          
-          await supabase
-            .from('users')
-            .update({
-              is_plus: true,
-              plus_expires_at: plusExpiresAt.toISOString()
-            })
-            .eq('id', userId);
-        }
+        const plusExpiresAt = new Date();
+        plusExpiresAt.setFullYear(plusExpiresAt.getFullYear() + 1);
+
+        await db
+          .update(users)
+          .set({
+            isPlus: true,
+            plusExpiresAt,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, userId));
       }
     }
 

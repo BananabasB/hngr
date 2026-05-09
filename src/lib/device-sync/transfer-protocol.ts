@@ -103,7 +103,7 @@ export class TransferHost {
     this.updateProgress(10, 'Freezing state...');
 
     // Serialize the current state
-    this.serializedState = serializeState(this.originalState);
+    this.serializedState = await serializeState(this.originalState);
     this.session.frozenState = this.originalState;
 
     // Create chunks for transfer
@@ -337,7 +337,7 @@ export class TransferSecondary {
       }
 
       // Deserialize state
-      const state = deserializeState(serializedState);
+      const state = await deserializeState(serializedState);
 
       this.updateProgress(98, 'State validated, resuming...');
 

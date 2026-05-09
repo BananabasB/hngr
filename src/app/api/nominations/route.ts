@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
 import { getMentalHealthGuidance } from '@/lib/mental-health-resources';
 import { analyzeContent } from '@/lib/profanity-detection';
-import { areFriends } from '@/lib/supabase/services/friends';
+import { nominationRepository } from '@/repositories/drizzle/nomination.repository';
+import { friendshipRepository } from '@/repositories/drizzle/friendship.repository';
+import { notificationRepository } from '@/repositories/drizzle/notification.repository';
 import type { CreateNominationRequest } from '@/lib/supabase/types';
+import { db } from '@/db';
+import { nominations } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 // Perspective API configuration (free tier)
 const PERSPECTIVE_API_KEY = process.env.PERSPECTIVE_API_KEY;
@@ -294,21 +299,21 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, nominationData, requireFriendship = false }: {
-      userId: string;
+      userId?: string;
       nominationData: CreateNominationRequest;
       requireFriendship?: boolean;
     } = body;
 
-    if (!userId || !nominationData?.tribute_name) {
+    if (!nominationData?.tribute_name || !nominationData?.recipient_id) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Optionally verify they are friends
-    if (requireFriendship) {
-      const friends = await areFriends(userId, nominationData.recipient_id);
+    // Optionally verify they are friends (only if nominator is logged in)
+    if (requireFriendship && userId) {
+      const friends = await friendshipRepository.areFriends(userId, nominationData.recipient_id);
       if (!friends) {
         return NextResponse.json(
           { error: 'You can only nominate tributes to your friends' },
@@ -339,16 +344,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this exact tribute (by name) has already been nominated to this recipient
-    const { data: existing } = await supabase
-      .from('nominations')
-      .select('*')
-      .eq('nominator_id', userId)
-      .eq('recipient_id', nominationData.recipient_id)
-      .eq('tribute_name', nominationData.tribute_name)
-      .eq('status', 'pending')
-      .single();
+    const existing = await db
+      .select()
+      .from(nominations)
+      .where(
+        and(
+          eq(nominations.nominatorId, userId || sql`NULL`),
+          eq(nominations.recipientId, nominationData.recipient_id),
+          eq(nominations.tributeName, nominationData.tribute_name),
+          eq(nominations.status, 'pending')
+        )
+      )
+      .limit(1);
 
-    if (existing) {
+    if (existing.length > 0) {
       return NextResponse.json(
         { error: 'You have already nominated this tribute to this user' },
         { status: 409 }
@@ -356,34 +365,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the nomination with embedded tribute data
-    const { data, error } = await supabase
-      .from('nominations')
-      .insert({
-        nominator_id: userId,
-        recipient_id: nominationData.recipient_id,
-        tribute_name: nominationData.tribute_name,
-        tribute_pronouns: nominationData.tribute_pronouns,
-        tribute_image_url: nominationData.tribute_image_url || null,
-        tribute_bio: nominationData.tribute_bio || null,
-        message: nominationData.message || null,
-        income: nominationData.income || null,
-        status: 'pending',
-        votes: 0,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      return NextResponse.json(
-        { error: 'Failed to create nomination' },
-        { status: 500 }
-      );
-    }
+    const data = await nominationRepository.create({
+      nominatorId: userId || null,
+      recipientId: nominationData.recipient_id,
+      tributeName: nominationData.tribute_name,
+      tributePronouns: nominationData.tribute_pronouns,
+      tributeImageUrl: nominationData.tribute_image_url || null,
+      tributeBio: nominationData.tribute_bio || null,
+      message: nominationData.message || null,
+      income: nominationData.income || null,
+      status: 'pending',
+      votes: 0,
+    });
 
     // Create notification for recipient
-    await supabase.from('notifications').insert({
-      user_id: nominationData.recipient_id,
+    await notificationRepository.create({
+      userId: nominationData.recipient_id,
       type: 'nomination_received',
       title: 'New tribute nomination',
       message: 'You received a new tribute nomination',

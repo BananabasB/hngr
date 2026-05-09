@@ -9,21 +9,25 @@ import { Label } from "@/components/ui/label";
 import { ClerkWordmarkDark } from "@/components/ui/svgs/clerkWordmarkDark";
 import { ClerkWordmarkLight } from "@/components/ui/svgs/clerkWordmarkLight";
 import { Google } from "@/components/ui/svgs/google";
-import { cn } from "@/lib/utils";
-import * as Clerk from "@clerk/elements/common";
-import * as SignIn from "@clerk/elements/sign-in";
-import { Gupter, Roboto } from "next/font/google";
-import { useState, useEffect, useRef } from "react";
+import { useSignIn } from "@clerk/nextjs/legacy";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { SiLine } from "@icons-pack/react-simple-icons";
-import { BowArrow, KeyRound, MailOpen } from "lucide-react";
+import { SiLine, SiDiscord } from "@icons-pack/react-simple-icons";
+import { BowArrow, KeyRound, MailOpen, Loader2 } from "lucide-react";
+import { Gupter, Roboto, Geist } from "next/font/google";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
   weight: ["400", "500", "700"],
   subsets: ["latin"],
 });
+const geist = Geist({ subsets: ["latin"] });
 
 const LAST_METHOD_KEY = "hngr:lastAuthMethod";
 const LAST_EMAIL_KEY = "hngr:lastEmail";
@@ -70,46 +74,38 @@ function EmailProviderButton({ email }: { email: string | null }) {
 }
 
 export function SignInPage() {
+  const { isLoaded, signIn, setActive } = useSignIn();
   const [email, setEmail] = useState("");
-  const [lastMethod, setLastMethod] = useState<"google" | "email" | "line" | null>(null);
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [step, setStep] = useState<"start" | "verifications" | "link-sent">("start");
+  const [error, setError] = useState<string | null>(null);
+  const [lastMethod, setLastMethod] = useState<"google" | "email" | "line" | "discord" | null>(null);
   const [lastEmail, setLastEmail] = useState<string | null>(null);
   const router = useRouter();
   const identifierInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedMethod = localStorage.getItem(LAST_METHOD_KEY) as
-        | "google"
-        | "email"
-        | "line"
-        | null;
-      if (storedMethod === "google" || storedMethod === "email" || storedMethod === "line") {
-        setLastMethod(storedMethod);
-      }
-      const storedEmail = localStorage.getItem(LAST_EMAIL_KEY);
-      if (storedEmail) {
-        setLastEmail(storedEmail);
-      }
+    if (typeof window === "undefined") return;
+
+    const storedMethod = localStorage.getItem(LAST_METHOD_KEY) as
+      | "google"
+      | "email"
+      | "line"
+      | "discord"
+      | null;
+
+    if (storedMethod === "google" || storedMethod === "email" || storedMethod === "line" || storedMethod === "discord") {
+      setLastMethod(storedMethod);
+    }
+
+    const storedEmail = localStorage.getItem(LAST_EMAIL_KEY);
+    if (storedEmail) {
+      setLastEmail(storedEmail);
     }
   }, []);
 
-  useEffect(() => {
-    const checkForError = setInterval(() => {
-      const errorElement = document.querySelector(
-        '[data-error-code="form_identifier_not_found"]'
-      );
-      if (errorElement && email) {
-        clearInterval(checkForError);
-        router.push(
-          `/auth/create/verify?email=${encodeURIComponent(email)}&redirected=true`
-        );
-      }
-    }, 100);
-
-    return () => clearInterval(checkForError);
-  }, [email, router]);
-
-  const rememberMethod = (method: "google" | "email" | "line", value?: string) => {
+  const rememberMethod = (method: "google" | "email" | "line" | "discord", value?: string) => {
     if (typeof window === "undefined") return;
     localStorage.setItem(LAST_METHOD_KEY, method);
     setLastMethod(method);
@@ -119,212 +115,350 @@ export function SignInPage() {
     }
   };
 
-  const handleGoogleClick = () => {
+  const handleGoogleClick = async () => {
+    if (!isLoaded) return;
     rememberMethod("google");
+
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
   };
 
-  const handleLineClick = () => {
+  const handleDiscordClick = async () => {
+    if (!isLoaded) return;
+    rememberMethod("discord");
+
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_discord",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
+  };
+
+  const handleLineClick = async () => {
+    if (!isLoaded) return;
     rememberMethod("line");
+
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_line",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
   };
 
-  const handleEmailSubmit = () => {
-    rememberMethod("email", email || undefined);
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded || !email) return;
+
+    setVerifying(true);
+    setError(null);
+    rememberMethod("email", email);
+
+    try {
+      const created = await signIn.create({ identifier: email });
+
+      if (created.status === "complete") {
+        await setActive({ session: created.createdSessionId });
+        router.push("/");
+        return;
+      }
+
+      const firstFactor = (created as any).supportedFirstFactors?.find(
+        (factor: any) => factor.strategy === "email_code" || factor.strategy === "email_link"
+      );
+
+      if (!firstFactor) {
+        setError("This account doesn't have a supported email login method enabled.");
+        return;
+      }
+
+      if (firstFactor.strategy === "email_link") {
+        await signIn.prepareFirstFactor({
+          strategy: "email_link",
+          emailAddressId: firstFactor.emailAddressId,
+          redirectUrl: `${window.location.origin}/sso-callback`,
+        });
+        setStep("link-sent");
+        return;
+      }
+
+      await signIn.prepareFirstFactor({
+        strategy: "email_code",
+        emailAddressId: firstFactor.emailAddressId,
+      });
+
+      setStep("verifications");
+    } catch (err: any) {
+      const message = err.errors?.[0]?.message || err.message || "Failed to send code";
+
+      if (err.errors?.[0]?.code === "form_identifier_not_found") {
+        router.push(`/auth/create?email=${encodeURIComponent(email)}&redirected=true`);
+        return;
+      }
+
+      if (/missing/i.test(message)) {
+        setError("Email sign-in is temporarily unavailable. Please use Google, Discord, or LINE.");
+        return;
+      }
+
+      setError(message);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent | string) => {
+    if (typeof e !== "string") e.preventDefault();
+    const verificationCode = typeof e === "string" ? e : code;
+
+    if (!isLoaded || !verificationCode) return;
+
+    setVerifying(true);
+    setError(null);
+
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: "email_code",
+        code: verificationCode,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.push("/");
+      } else {
+        console.error("Sign in status not complete:", result.status);
+        setError("Something went wrong during verification");
+      }
+    } catch (err: any) {
+      const message = err.errors?.[0]?.message || err.message || "Invalid code";
+      setError(/missing/i.test(message) ? "Email verification is temporarily unavailable. Please use another sign-in method." : message);
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleAutofillEmail = () => {
     if (!lastEmail) return;
     setEmail(lastEmail);
-    if (identifierInputRef.current) {
-      identifierInputRef.current.focus();
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value"
-      )?.set;
-      if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(identifierInputRef.current, lastEmail);
-        identifierInputRef.current.dispatchEvent(
-          new Event("input", { bubbles: true })
-        );
-      }
-    }
+    identifierInputRef.current?.focus();
   };
 
+  if (!isLoaded) return null;
+
   return (
-    <div className="flex flex-col gap-5 min-h-screen items-center text-center justify-center">
-      <SignIn.Root>
-        <div className="max-w-100 gap-5 flex flex-col">
-          <SignIn.Step name="start">
-            <div className="flex w-full max-w-md mx-auto flex-col gap-6">
-              <div className="gap-2">
-                <div className="mx-auto flex size-8 items-center justify-center rounded-md">
-                  <BowArrow className="size-6" />
-                </div>
-                <span className="sr-only">hngr</span>
-                <h1 className={`text-3xl ${gupter.className}`}>
-                  sign in or sign up
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  we'll check if you have an account with us, and create one if
-                  you don't.
-                </p>
+    <div className="flex flex-col gap-5 min-h-screen items-center text-center justify-center px-4 py-10">
+      <div className="max-w-100 gap-5 flex flex-col">
+        {step === "start" ? (
+          <div className="flex w-full max-w-md mx-auto flex-col gap-6">
+            <div className="gap-2">
+              <div className="mx-auto flex size-8 items-center justify-center rounded-md">
+                <BowArrow className="size-6" />
               </div>
-              <div className="relative">
-                <Button
-                  asChild
-                  className={`w-full rounded-full ${roboto.className} font-medium`}
-                  variant="outline"
+              <span className="sr-only">hngr</span>
+              <h1 className={`text-3xl ${gupter.className}`}>
+                hngr private beta
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                we'll check if you have an account with us, and show you how to join the waitlist if you don't.
+              </p>
+            </div>
+
+            <div className="relative">
+              <Button
+                className={`w-full rounded-full ${roboto.className} font-medium`}
+                variant="outline"
+                onClick={handleGoogleClick}
+              >
+                <Google className="size-5 flex-none" />
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  Continue with Google
+                </span>
+              </Button>
+              {lastMethod === "google" && (
+                <Badge
+                  variant="secondary"
+                  className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
                 >
-                  <Clerk.Connection
-                    name="google"
-                    className="flex w-full items-center justify-center gap-2"
+                  last used
+                </Badge>
+              )}
+            </div>
+
+            <div className="relative">
+              <Button
+                className={`font-[family-name:var(--font-gg-sans)] w-full rounded-lg bg-[#5865F2] text-white hover:bg-[#4752C4] active:bg-[#3C45A5] font-medium`}
+                onClick={handleDiscordClick}
+              >
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  <SiDiscord className="size-5 flex-none" />
+                  Continue with Discord
+                </span>
+              </Button>
+              {lastMethod === "discord" && (
+                <Badge
+                  variant="secondary"
+                  className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
+                >
+                  last used
+                </Badge>
+              )}
+            </div>
+
+            <div className="relative">
+              <Button
+                className={`${geist.className} w-full rounded-lg bg-brand-line-bg text-white pl-1 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active font-medium`}
+                onClick={handleLineClick}
+              >
+                <span className="flex justify-items-start items-center border-r border-brand-line-line pr-2 h-full">
+                  <SiLine className="text-white size-5" />
+                </span>
+                <span className="flex-1 text-center flex items-center justify-center gap-2">
+                  Continue with LINE
+                </span>
+              </Button>
+              {lastMethod === "line" && (
+                <Badge
+                  variant="secondary"
+                  className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
+                >
+                  last used
+                </Badge>
+              )}
+            </div>
+
+            <FieldSeparator>or</FieldSeparator>
+
+            <form onSubmit={handleEmailSubmit} className="gap-2 flex flex-col">
+              <div className="flex items-center justify-between text-left">
+                <Label htmlFor="identifier">email address</Label>
+                {lastMethod === "email" && lastEmail && (
+                  <button
+                    type="button"
+                    onClick={handleAutofillEmail}
+                    className="focus:outline-none"
                   >
-                    <Google className="size-5 flex-none" />
-                    <span className="flex-1 text-center flex items-center justify-center gap-2">
-                      Continue with Google
-                    </span>
-                  </Clerk.Connection>
-                </Button>
-                {lastMethod === "google" && (
-                  <Badge
-                    variant="secondary"
-                    className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
-                  >
-                    last used
-                  </Badge>
+                    <Badge className="cursor-pointer text-[10px] uppercase font-semibold">
+                      last used
+                    </Badge>
+                  </button>
                 )}
               </div>
-              <div className="relative">
-                <Button
-                  asChild
-                  className={`w-full rounded-lg bg-brand-line-bg text-white pl-1 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active ${roboto.className} font-medium`}
-                  onClick={handleLineClick}
+              <Input
+                id="identifier"
+                ref={identifierInputRef}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                placeholder="email@example.com"
+                required
+              />
+              {error && <p className="text-destructive text-sm text-left">{error}</p>}
+
+              <Button type="submit" disabled={verifying} className="mt-2">
+                {verifying ? <Loader2 className="animate-spin" /> : <MailOpen />}
+                send me a code
+              </Button>
+            </form>
+
+            <div className="flex items-center w-full justify-center gap-2">
+              <Alert className="text-start">
+                <KeyRound />
+                <AlertTitle>we're passwordless</AlertTitle>
+                <AlertDescription>
+                  passwords are a hassle and make using websites a mess. that's why hngr doesn't use passwords.
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
+        ) : step === "link-sent" ? (
+          <div className="flex min-w-80 flex-col gap-6">
+            <h1>check your email</h1>
+            <p>
+              we sent a sign-in link to {email}. click it to finish logging in.
+            </p>
+
+            <EmailProviderButton email={email} />
+
+            {error && <p className="text-destructive text-sm">{error}</p>}
+
+            <Button
+              variant="link"
+              onClick={() => setStep("start")}
+              className="text-muted-foreground"
+            >
+              go back
+            </Button>
+          </div>
+        ) : (
+          <div className="flex min-w-80 flex-col gap-6">
+            <h1>check your email</h1>
+            <p>we sent a code to {email}.</p>
+
+            <EmailProviderButton email={email} />
+
+            <form onSubmit={handleVerify} className="gap-2 flex flex-col">
+              <Label htmlFor="code">email code</Label>
+              <div className="w-full">
+                <InputOTP
+                  id="code"
+                  className="w-full"
+                  containerClassName="w-full"
+                  maxLength={6}
+                  value={code}
+                  onChange={(val) => {
+                    setCode(val);
+                    if (val.length === 6) handleVerify(val);
+                  }}
+                  autoFocus
                 >
-                  <Clerk.Connection
-                    name="line"
-                    className="flex w-full items-center justify-center gap-2"
-                    aria-label="Sign in with LINE"
-                  >
-                    <span className="flex justify-items-start items-center border-r border-brand-line-line pr-2 h-full">
-                      <SiLine className="text-white size-5" />
-                    </span>
-                    <span className="flex-1 text-center flex items-center justify-center gap-2">
-                      Continue with LINE
-                    </span>
-                  </Clerk.Connection>
-                </Button>
-                {lastMethod === "line" && (
-                  <Badge
-                    variant="secondary"
-                    className="pointer-events-none absolute -top-2 right-0 text-[10px] uppercase font-semibold shadow-md"
-                  >
-                    last used
-                  </Badge>
-                )}
+                  <InputOTPGroup className="w-full justify-between">
+                    {[...Array(6)].map((_, i) => (
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="h-20 w-full flex-1 text-2xl"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
-              <Clerk.Field name="identifier" className="gap-2 flex flex-col">
-                <div className="flex items-center justify-between text-left">
-                  <Label asChild>
-                    <Clerk.Label>email address</Clerk.Label>
-                  </Label>
-                  {lastMethod === "email" && lastEmail && (
-                    <button
-                      type="button"
-                      onClick={handleAutofillEmail}
-                      className="focus:outline-none"
-                    >
-                      <Badge className="cursor-pointer text-[10px] uppercase font-semibold">
-                        last used
-                      </Badge>
-                    </button>
-                  )}
-                </div>
-                <Clerk.Input asChild>
-                  <Input
-                    ref={identifierInputRef}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </Clerk.Input>
-                <Clerk.FieldError className="block text-destructive text-sm" />
-              </Clerk.Field>
+              {error && <p className="text-destructive text-sm">{error}</p>}
 
-              <SignIn.Action submit asChild>
-                <Button onClick={handleEmailSubmit}>
-                  <MailOpen />
-                  send me a code
-                </Button>
-              </SignIn.Action>
-
-              <div className="flex items-center w-full justify-center gap-2">
-                <Alert className="text-start">
-                  <KeyRound />
-                  <AlertTitle>we're passwordless</AlertTitle>
-                  <AlertDescription>
-                    passwords are a hassle and make using websites a mess. that's why hngr
-                    doesn't use passwords.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </div>
-          </SignIn.Step>
-          <SignIn.Step name="verifications">
-            <div className="flex min-w-80 flex-col gap-6">
-              <SignIn.Strategy name="email_code">
-                <h1>check your email</h1>
-                <p>
-                  we sent a code to <SignIn.SafeIdentifier />.
-                </p>
-
-                <EmailProviderButton email={email} />
-
-                <Clerk.Field name="code" className="gap-2 flex flex-col">
-                  <Clerk.Label asChild>
-                    <Label>email code</Label>
-                  </Clerk.Label>
-                  <Clerk.Input
-                    type="otp"
-                    className="flex min-w-full justify-center has-[:disabled]:opacity-50"
-                    autoSubmit
-                    render={({ value, status }) => {
-                      return (
-                        <div
-                          data-status={status}
-                          className={cn(
-                            "relative flex w-full h-20 text-2xl items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-                            {
-                              "z-10 ring-2 ring-ring ring-offset-background":
-                                status === "cursor" || status === "selected",
-                            }
-                          )}
-                        >
-                          {value}
-                          {status === "cursor" && (
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                              <div className="animate-caret-blink h-4 w-px duration-1000" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }}
-                  />
-                  <Clerk.FieldError />
-                </Clerk.Field>
-
-                <SignIn.Action submit asChild>
-                  <Button>continue</Button>
-                </SignIn.Action>
-              </SignIn.Strategy>
-            </div>
-          </SignIn.Step>
-        </div>
-      </SignIn.Root>
+              <Button type="submit" disabled={verifying || code.length < 6} className="mt-4">
+                {verifying ? <Loader2 className="animate-spin" /> : "continue"}
+              </Button>
+              <Button
+                variant="link"
+                onClick={() => setStep("start")}
+                className="text-muted-foreground"
+              >
+                go back
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-center gap-2">
         <p className="text-muted-foreground text-sm">secured by</p>
-        <a href="https://go.clerk.com/components" className="flex items-center">
+        <div className="flex items-center">
           <ClerkWordmarkDark className="hidden dark:inline h-4" />
           <ClerkWordmarkLight className="inline dark:hidden h-4" />
-        </a>
+        </div>
       </div>
     </div>
   );

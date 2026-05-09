@@ -1,12 +1,12 @@
 'use client';
-
-import { Gupter, Roboto } from "next/font/google";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Crown, Sparkles, Download, Users, Zap, Upload } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { isHngrPlusEnabled } from "@/lib/plus";
+import { Gupter, Roboto } from "next/font/google";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
@@ -16,6 +16,7 @@ const roboto = Roboto({
 
 export default function HngrPlusPage() {
   const { user, isPlus } = useAuth();
+  const plusEnabled = isHngrPlusEnabled();
 
   const features = [
     {
@@ -62,10 +63,12 @@ export default function HngrPlusPage() {
           take your experience further
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-          unlock the full potential of hngr with a one-time purchase of premium features.
+          {plusEnabled
+            ? 'unlock the full potential of hngr with a one-time purchase of premium features.'
+            : 'hngr+ is turned off for this beta, so all premium features are available to everyone.'}
         </p>
         
-        {isPlus ? (
+        {plusEnabled && isPlus ? (
           <Card className="max-w-md mx-auto bg-card">
             <CardContent className="p-6 text-center">
               <Check className="w-12 h-12 text-green-600 mx-auto mb-3" />
@@ -80,12 +83,20 @@ export default function HngrPlusPage() {
           </Card>
         ) : (
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="text-base px-8">
-              <Link href="/pay/checkout">get hngr+</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="text-base px-8">
-              <Link href="#pricing">view pricing</Link>
-            </Button>
+            {plusEnabled ? (
+              <>
+                <Button asChild size="lg" className="text-base px-8">
+                  <Link href="/pay/checkout">get hngr+</Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="text-base px-8">
+                  <Link href="#pricing">view pricing</Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="lg" className="text-base px-8">
+                <Link href="/">go to dashboard</Link>
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -94,7 +105,7 @@ export default function HngrPlusPage() {
       <div className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className={`${gupter.className} text-3xl text-center mb-12`}>
-            premium features
+            {plusEnabled ? 'premium features' : 'features for everyone'}
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, index) => (
@@ -118,7 +129,7 @@ export default function HngrPlusPage() {
       <div id="pricing" className="py-16 px-4 bg-muted/50">
         <div className="max-w-4xl mx-auto">
           <h2 className={`${gupter.className} text-3xl text-center mb-12`}>
-            simple pricing
+            {plusEnabled ? 'simple pricing' : 'private beta pricing'}
           </h2>
           <div className="grid md:grid-cols-1 gap-8">
             {/* Lifetime Plan */}
@@ -144,9 +155,15 @@ export default function HngrPlusPage() {
                 ))}
               </CardContent>
               <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href="/pay/checkout">get hngr+ now</Link>
-                </Button>
+                {plusEnabled ? (
+                  <Button asChild className="w-full">
+                    <Link href="/pay/checkout">get hngr+ now</Link>
+                  </Button>
+                ) : (
+                  <Button className="w-full" disabled>
+                    included in beta
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           </div>

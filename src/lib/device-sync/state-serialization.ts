@@ -35,7 +35,7 @@ export interface TransferManifest {
 /**
  * Serialize HngrDB state for transfer
  */
-export function serializeState(db: HngrDB): SerializedState {
+export async function serializeState(db: HngrDB): Promise<SerializedState> {
   const timestamp = Date.now();
   const version = '1.0.0';
 
@@ -67,7 +67,7 @@ export function serializeState(db: HngrDB): SerializedState {
   };
 
   // Create checksum for integrity verification
-  const checksum = generateChecksum(data);
+  const checksum = await generateChecksum(data);
 
   return {
     version,
@@ -81,14 +81,14 @@ export function serializeState(db: HngrDB): SerializedState {
 /**
  * Deserialize state with validation
  */
-export function deserializeState(serialized: SerializedState): HngrDB {
+export async function deserializeState(serialized: SerializedState): Promise<HngrDB> {
   // Validate version compatibility
   if (!isVersionCompatible(serialized.version)) {
     throw new Error(`Incompatible state version: ${serialized.version}`);
   }
 
   // Verify checksum
-  const calculatedChecksum = generateChecksum(serialized.data);
+  const calculatedChecksum = await generateChecksum(serialized.data);
   if (calculatedChecksum !== serialized.checksum) {
     throw new Error('State integrity check failed - checksum mismatch');
   }
@@ -285,16 +285,15 @@ function validateRelationships(tributes: Record<string, Tribute>): void {
 /**
  * Generate checksum for state integrity
  */
-function generateChecksum(data: HngrDB): string {
+async function generateChecksum(data: HngrDB): Promise<string> {
   const jsonString = JSON.stringify(data, Object.keys(data).sort());
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(jsonString);
 
-  return crypto.subtle.digest('SHA-256', dataBuffer)
-    .then(hash => Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
-    );
+  const hash = await crypto.subtle.digest('SHA-256', dataBuffer);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**

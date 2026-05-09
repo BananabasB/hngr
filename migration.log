@@ -1,0 +1,26 @@
+$ bash ./scripts/run-migrate.sh
+[wrapper] drizzle_schema=0 migrations_table=0
+[wrapper] drizzle schema exists: 0, migrations table exists: 0
+[wrapper] drizzle not initialized; running migrate directly
+Reading config file '/Users/barnabasbodily/hngr/web/drizzle.config.ts'
+◇ injected env (17) from .env.local // tip: ◈ encrypted .env [www.dotenvx.com]
+Using 'postgres' driver for database querying
+[⣷] applying migrations...[2K[1G[⣯] applying migrations...[2K[1G[⣟] applying migrations...[2K[1G[⡿] applying migrations...{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '207',
+  routine: 'transformCreateStmt'
+}
+[2K[1G[⢿] applying migrations...[2K[1G[⣻] applying migrations...[2K[1G[⣽] applying migrations...[2K[1G[⣽] applying migrations...error: script "db:migrate" exited with code 1

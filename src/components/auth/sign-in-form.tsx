@@ -5,13 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Gupter } from "next/font/google";
 import { MailOpen, KeyRound } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldSeparator } from "@/components/ui/field";
 import { ClerkWordmarkDark } from "@/components/ui/svgs/clerkWordmarkDark";
 import { ClerkWordmarkLight } from "@/components/ui/svgs/clerkWordmarkLight";
 import { Google } from "@/components/ui/svgs/google";
+import { Gupter } from "next/font/google";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 

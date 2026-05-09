@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { clerkClient, currentUser } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 
 // Supabase configuration with proper API keys
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -26,21 +26,8 @@ export async function createAuthenticatedSupabaseClient() {
       throw new Error('User not authenticated');
     }
 
-    // Get JWT token with Supabase template
-    const clerk = await clerkClient();
-    const token = await clerk.sessions.getToken(user.id, 'supabase');
-
-    return createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      auth: {
-        detectSessionInUrl: false,
-        persistSession: false,
-      },
-    });
+    // API routes already verify Clerk auth, so service-role access is safe here.
+    return supabaseAdmin;
   } catch (error) {
     console.error('Error creating Supabase client with Clerk token:', error);
     throw error;

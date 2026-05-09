@@ -66,15 +66,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     target: '[data-onboarding="sidebar"]',
     action: 'explore the different sections',
     position: 'right',
-    condition: () => {
-      // Only show if user is authenticated (has access to these features)
-      try {
-        const { isSignedIn } = useAuth();
-        return isSignedIn;
-      } catch {
-        return false;
-      }
-    },
+    requiresAuth: true,
   },
   {
     id: 'friends',
@@ -83,14 +75,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     target: '[data-onboarding="sidebar"]', // Target the friends item in sidebar
     action: 'click on friends to add connections',
     position: 'right',
-    condition: () => {
-      try {
-        const { isSignedIn } = useAuth();
-        return isSignedIn;
-      } catch {
-        return false;
-      }
-    },
+    requiresAuth: true,
   },
   {
     id: 'sync',

@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
-import { Gupter } from "next/font/google";
 import React from "react";
 import { Button } from "./ui/button";
 import {
@@ -16,9 +15,11 @@ import { HngrDB, Tribute } from "@/lib/setup";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { PencilLine, Upload } from "lucide-react";
-const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 import { Textarea } from "./ui/textarea";
 import { autocompletePronouns } from "@/lib/pronoun-autocomplete";
+import { Gupter } from "next/font/google";
+
+const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 type Props = {
   tributes: Record<string, Tribute>; // { id: Tribute, ... }

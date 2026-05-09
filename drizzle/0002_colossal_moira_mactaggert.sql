@@ -1,0 +1,1 @@
+ALTER TABLE "nominations" ALTER COLUMN "nominator_id" DROP NOT NULL;

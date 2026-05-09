@@ -1,6 +1,7 @@
 import * as React from 'react' // imported React for state hooks
 import { BowArrow, Check, ChevronsUpDown } from "lucide-react"
-import { useSignUp, useClerk } from '@clerk/nextjs' // ⬅️ clerk imports
+import { useClerk } from "@clerk/nextjs"; // ⬅️ clerk imports
+import { useSignUp } from "@clerk/nextjs/legacy";
 import PhoneInput from 'react-phone-number-input'
 import type { Country } from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
@@ -32,11 +33,11 @@ function VerifyEmailLink() {
     // This hook runs once when the component mounts after the redirect
     async function verify() {
       try {
-        await handleEmailLinkVerification(async (attempt) => {
+        await handleEmailLinkVerification((async (attempt: any) => {
           // You could inspect the attempt status here if needed
           await attempt.completeSignUp()
           setSuccess(true)
-        })
+        }) as any)
       } catch (err: any) {
         console.error('Clerk verification error:', JSON.stringify(err, null, 2))
         setError(err.errors?.[0]?.longMessage || 'an error occurred during verification.')
@@ -149,8 +150,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
         phoneNumber: phoneNumber || undefined
       })
 
-      // 2. start email link flow with explicit strategy
-      const { startEmailLinkFlow } = signUp!.createEmailLinkFlow({ strategy: "email_link" })
+      // 2. start email link flow
+      const { startEmailLinkFlow } = signUp!.createEmailLinkFlow()
 
       const protocol = window.location.protocol
       const host = window.location.host

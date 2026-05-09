@@ -1,13 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { X, ArrowRight, ArrowLeft, FastForward, Sparkles } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, FastForward, Sparkles, ShieldCheck, Waypoints, WandSparkles } from "lucide-react";
 import { useOnboarding } from "@/lib/onboarding-context";
 import { motion, AnimatePresence } from "motion/react";
 import { SignInButton } from "@clerk/nextjs";
+import { Gupter } from "next/font/google";
+
+const gupter = Gupter({ weight: "400", subsets: ["latin"] });
+
+const stepIcons: Record<string, ReactNode> = {
+  welcome: <Sparkles className="h-5 w-5" />,
+  districts: <Waypoints className="h-5 w-5" />,
+  "tribute-naming": <WandSparkles className="h-5 w-5" />,
+  "auth-required": <ShieldCheck className="h-5 w-5" />,
+  sidebar: <Waypoints className="h-5 w-5" />,
+  friends: <Sparkles className="h-5 w-5" />,
+  sync: <ShieldCheck className="h-5 w-5" />,
+  complete: <Sparkles className="h-5 w-5" />,
+};
 
 export function OnboardingOverlay() {
   const { 
@@ -120,7 +134,7 @@ export function OnboardingOverlay() {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-background bg-opacity-90 z-40 flex items-center justify-center"
+        className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-md"
         onClick={skipOnboarding}
       >
         {/* Centered Content */}
@@ -146,139 +160,131 @@ export function OnboardingOverlay() {
             damping: 25,
             duration: 0.4
           }}
-          className="w-full max-w-md mx-4 text-center"
+          className="w-full max-w-lg mx-4 text-center"
           onClick={(e) => e.stopPropagation()}
         >
-        {/* Title Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          className="mb-6"
-        >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            {step.id === 'welcome' && (
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="h-8 w-8 text-blue-500" />
-              </motion.div>
-            )}
-            <h1 className="text-3xl font-bold text-foreground">{step.title}</h1>
-          </div>
-          
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: "auto" }}
-              transition={{ delay: 0.2, duration: 0.3 }}
-            >
-              <Badge variant="secondary" className="text-sm px-3 py-1">
-                Step {currentStep + 1} of {filteredSteps.length}
+        <Card className="overflow-hidden border-border/70 bg-card/95 shadow-[0_25px_80px_rgba(0,0,0,0.16)] backdrop-blur-sm">
+          <CardHeader className="relative space-y-4 border-b border-border/60 bg-gradient-to-b from-muted/50 to-transparent px-8 py-8">
+            <div className="flex items-center justify-between text-left">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-background/80 text-foreground shadow-sm">
+                  {stepIcons[step.id] ?? <Sparkles className="h-5 w-5" />}
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Onboarding</p>
+                  <p className="text-sm text-muted-foreground">A quick tour of the key flows</p>
+                </div>
+              </div>
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium">
+                {currentStep + 1}/{filteredSteps.length}
               </Badge>
-            </motion.div>
+            </div>
+
+            <CardTitle className={`text-balance text-4xl font-normal leading-tight text-foreground ${gupter.className}`}>
+              {step.title}
+            </CardTitle>
+
             {step.action && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3, duration: 0.2 }}
-              >
-                <Badge variant="outline" className="text-sm px-3 py-1">
-                  {step.action}
-                </Badge>
-              </motion.div>
+              <Badge variant="outline" className="w-fit rounded-full px-3 py-1 text-sm text-muted-foreground">
+                {step.action}
+              </Badge>
             )}
-          </div>
-        </motion.div>
+          </CardHeader>
 
-        {/* Description */}
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.3 }}
-          className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg mx-auto"
-        >
-          {step.description}
-        </motion.p>
-        
-        {/* Buttons */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.3 }}
-          className="flex items-center justify-center gap-4"
-        >
-          {!isFirstStep && (
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                onClick={previousStep}
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Previous
-              </Button>
-            </motion.div>
-          )}
-          
-          {step.id === 'auth-required' ? (
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <SignInButton>
-                <Button size="lg" className="gap-2">
-                  Sign In
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </SignInButton>
-            </motion.div>
-          ) : (
-            <>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button 
-                  variant="ghost" 
-                  size="lg" 
-                  onClick={skipOnboarding}
-                  className="gap-2"
-                >
-                  <FastForward className="h-4 w-4" />
-                  Skip
-                </Button>
-              </motion.div>
-              
-              <motion.div 
-                whileHover={{ scale: 1.05 }} 
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button 
-                  size="lg" 
-                  onClick={nextStep}
-                  className="gap-2"
-                >
-                  {isLastStep ? 'Get Started' : 'Next'}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </motion.div>
-            </>
-          )}
-        </motion.div>
+          <CardContent className="space-y-8 px-8 py-8">
+            <motion.p 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.3 }}
+              className="mx-auto max-w-xl text-pretty text-lg leading-8 text-muted-foreground"
+            >
+              {step.description}
+            </motion.p>
 
-        {/* Close button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.2 }}
-          className="absolute top-4 right-4"
-        >
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={skipOnboarding}
-            className="h-8 w-8 p-0"
+            <div className="flex items-center justify-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="h-px w-12 bg-border" />
+              {isLastStep ? "Ready to begin" : "Guided setup"}
+              <span className="h-px w-12 bg-border" />
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+              className="flex flex-col-reverse items-stretch justify-center gap-3 sm:flex-row"
+            >
+              {!isFirstStep && (
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    onClick={previousStep}
+                    className="gap-2 rounded-full px-6"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                </motion.div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {step.id === 'auth-required' ? (
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <SignInButton>
+                      <Button size="lg" className="gap-2 rounded-full px-6 shadow-sm">
+                        Sign in to continue
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </SignInButton>
+                  </motion.div>
+                ) : null}
+
+                {step.id !== 'auth-required' && (
+                  <>
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button 
+                        variant="ghost" 
+                        size="lg" 
+                        onClick={skipOnboarding}
+                        className="gap-2 rounded-full px-6 text-muted-foreground"
+                      >
+                        <FastForward className="h-4 w-4" />
+                        Skip tour
+                      </Button>
+                    </motion.div>
+
+                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <Button 
+                        size="lg" 
+                        onClick={nextStep}
+                        className="gap-2 rounded-full px-6 shadow-sm"
+                      >
+                        {isLastStep ? 'Get started' : 'Next'}
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </CardContent>
+          {/* Close button */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.2 }}
+            className="absolute top-4 right-4"
           >
-            <X className="h-4 w-4" />
-          </Button>
-        </motion.div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={skipOnboarding}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </motion.div>
+        </Card>
         </motion.div>
       </motion.div>
     </AnimatePresence>

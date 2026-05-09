@@ -5,17 +5,25 @@ import { CheckoutProvider } from '@stripe/react-stripe-js/checkout';
 import CheckoutForm from './CheckoutForm';
 import { useStripeAppearance } from '@/lib/setup';
 import { useUser } from '@clerk/nextjs';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PK!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PK
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PK)
+  : Promise.resolve(null);
 
 export default function CheckoutPage() {
   const { user, isLoaded: userLoaded } = useUser();
   const [error, setError] = useState<string | null>(null);
+  const plusEnabled = isHngrPlusEnabled();
   
   const promise = useMemo(() => {
     if (!userLoaded) {
       // User is still loading, return a pending promise
       return new Promise(() => {}); // Never resolves
+    }
+
+    if (!plusEnabled) {
+      return Promise.resolve('');
     }
     
     if (!user?.id) {
@@ -45,7 +53,7 @@ export default function CheckoutPage() {
         setError(err.message);
         throw err;
       });
-  }, [user?.id, userLoaded]);
+  }, [plusEnabled, user?.id, userLoaded]);
 
   const appearance = useStripeAppearance();
 
@@ -69,15 +77,23 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!plusEnabled) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center space-y-4">
+        <h1 className="text-2xl font-bold">HNGR+ is free in this beta</h1>
+        <p className="text-muted-foreground">
+          Checkout is disabled because premium features are unlocked for everyone.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="App gap-2 flex flex-col">
       <CheckoutProvider
         stripe={stripePromise}
         options={{
           clientSecret: promise,
-          adaptivePricing: {
-            allowed: true
-          } as any, // Type assertion to handle Stripe API mismatch
           elementsOptions: {
             fonts: [
               {

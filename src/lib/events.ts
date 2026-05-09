@@ -1,6 +1,7 @@
 import { EventTemplate } from "./setup";
-import { adjustTrust, killTribute } from "./social";
+import { adjustTrust, killTribute, canUseItem, consumeItemForTribute, ensureAlliance, moveOneItemToAlliance } from "./social";
 import type { SimulationEventTemplate } from "@/lib/supabase/types";
+import { hasItem } from "./inventory";
 
 function getTrust(db: any, fromId: string, toId: string): number {
   return db.social?.trust?.[fromId]?.[toId] ?? 0;
@@ -11,7 +12,7 @@ function isBackstab(db: any): boolean {
 }
 
 function isOnlyTwoTributesLeft(db: any): boolean {
-  return db.tributes && Object.keys(db.tributes).length === 2;
+  return Object.values(db.tributes ?? {}).filter((tribute: any) => tribute?.health?.physical > 0).length === 2;
 }
 
 const coreTemplates: EventTemplate[] = [
@@ -23,12 +24,13 @@ const coreTemplates: EventTemplate[] = [
       " kills ",
       { role: "victim", prop: "name" },
       " with ",
-      { role: "killer", prop: "pronouns.possessive" }, // fixed shooter -> killer to match roles
+      { role: "killer", prop: "pronouns.possessive" },
       " bow and arrow."
     ],
     roles: ["killer", "victim"],
     conditions(db, { killer, victim }) {
       if (!killer || !victim) return false;
+      if (!canUseItem(db, killer.id, "bow") || !canUseItem(db, killer.id, "arrows")) return false;
       if (isOnlyTwoTributesLeft(db)) return true;
       const trustKV = getTrust(db, killer.id, victim.id);
       const trustVK = getTrust(db, victim.id, killer.id);
@@ -39,6 +41,7 @@ const coreTemplates: EventTemplate[] = [
     },
     effects(db, { killer, victim }) {
       if (!killer || !victim) return;
+      consumeItemForTribute(db, killer.id, "arrows", 1);
       if (Math.random() < 0.95) killTribute(db, victim.id);
       adjustTrust(db, victim.id, killer.id, -30);
       adjustTrust(db, killer.id, victim.id, -30);
@@ -53,10 +56,15 @@ const coreTemplates: EventTemplate[] = [
     ],
     roles: ["tribute"],
     conditions: (db, { tribute }) => {
-      return tribute && tribute.foodLvl >= 1;
+      return Boolean(tribute && (tribute.foodLvl >= 1 || hasItem(tribute.inventory, "ration")));
     },
     effects: (db, { tribute }) => {
       if (!tribute || !tribute.health) return;
+      if (tribute.foodLvl >= 1) {
+        tribute.foodLvl -= 1;
+      } else {
+        consumeItemForTribute(db, tribute.id, "ration", 1);
+      }
       tribute.health.physical += 5;
       tribute.health.mental += 10;
       adjustTrust(db, tribute.id, tribute.id, 5);
@@ -72,7 +80,8 @@ const coreTemplates: EventTemplate[] = [
     roles: ["tribute"],
     effects: (db, { tribute }) => {
       if (!tribute) return;
-      tribute.foodLvl += 2;
+      tribute.foodLvl += 1;
+      consumeItemForTribute(db, tribute.id, "ration", 1);
       adjustTrust(db, tribute.id, tribute.id, 5);
     }
   },
@@ -110,7 +119,8 @@ const coreTemplates: EventTemplate[] = [
     roles: ["tribute"],
     effects: (db, { tribute }) => {
       if (!tribute) return;
-      tribute.foodLvl += 5;
+      tribute.foodLvl += 1;
+      consumeItemForTribute(db, tribute.id, "ration", 1);
       adjustTrust(db, tribute.id, tribute.id, 5);
     }
   },
@@ -128,6 +138,7 @@ const coreTemplates: EventTemplate[] = [
     roles: ["shooter", "target"],
     conditions(db, { shooter, target }) {
       if (!shooter || !target) return false;
+      if (!canUseItem(db, shooter.id, "bow") || !canUseItem(db, shooter.id, "arrows")) return false;
       if (isOnlyTwoTributesLeft(db)) return true;
       const trustST = getTrust(db, shooter.id, target.id);
       const trustTS = getTrust(db, target.id, shooter.id);
@@ -138,6 +149,7 @@ const coreTemplates: EventTemplate[] = [
     },
     effects: (db, { shooter, target }) => {
       if (!shooter || !target) return;
+      consumeItemForTribute(db, shooter.id, "arrows", 1);
       adjustTrust(db, target.id, shooter.id, -20);
     },
   },
@@ -334,6 +346,9 @@ const coreTemplates: EventTemplate[] = [
       if (!tribute1 || !tribute2 || !tribute1.health || !tribute2.health) return;
       adjustTrust(db, tribute1.id, tribute2.id, 20);
       adjustTrust(db, tribute2.id, tribute1.id, 20);
+      ensureAlliance(db, [tribute1.id, tribute2.id]);
+      moveOneItemToAlliance(db, tribute1.id);
+      moveOneItemToAlliance(db, tribute2.id);
       if (tribute1.health.mental) tribute1.health.mental += 2;
       if (tribute2.health.mental) tribute2.health.mental += 2;
     }
@@ -462,7 +477,7 @@ const coreTemplates: EventTemplate[] = [
     roles: ["tribute"],
     effects: (db, { tribute }) => {
       if (!tribute || !tribute.health) return;
-      tribute.foodLvl += 2;
+      tribute.foodLvl += 1;
       tribute.health.physical += 2;
     }
   },
@@ -487,8 +502,12 @@ const coreTemplates: EventTemplate[] = [
       " practices archery, improving skill and confidence."
     ],
     roles: ["tribute"],
+    conditions: (db, { tribute }) => {
+      return Boolean(tribute && canUseItem(db, tribute.id, "bow") && canUseItem(db, tribute.id, "arrows"));
+    },
     effects: (db, { tribute }) => {
       if (!tribute || !tribute.health) return;
+      consumeItemForTribute(db, tribute.id, "arrows", 1);
       tribute.health.mental += 3;
     }
   },
@@ -500,8 +519,12 @@ const coreTemplates: EventTemplate[] = [
       " practices moving silently through the woods."
     ],
     roles: ["tribute"],
+    conditions: (db, { tribute }) => {
+      return Boolean(tribute && canUseItem(db, tribute.id, "camouflage"));
+    },
     effects: (db, { tribute }) => {
       if (!tribute || !tribute.health) return;
+      consumeItemForTribute(db, tribute.id, "camouflage", 1);
       tribute.health.mental += 2;
     }
   },

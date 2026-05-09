@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const html = await response.text();
     console.log("BrantSteele HTML length:", html.length);
     const $ = cheerio.load(html);
-    console.log("Debug: table.tribute count =", $("table.tribute").length);
+    console.log("table.tribute count =", $("table.tribute").length);
 
     if ($("table.tribute").length === 0) {
       console.log("Fallback: attempting to parse reaping page layout");
@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
           relationships: {},
           health: { physical: 100, mental: 100 }, // Match the expected schema
           foodLvl: 100,
+          inventory: {},
         });
       });
     });

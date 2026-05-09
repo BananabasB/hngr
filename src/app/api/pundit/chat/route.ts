@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { CreateSimulationEventTemplateRequest } from "@/lib/supabase/types";
 import { z } from "zod";
 import { v4 as uuidv4 } from 'uuid';
+import { isHngrPlusEnabled } from "@/lib/plus";
 
 export const maxDuration = 30;
 
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
     .eq('id', userId)
     .single();
 
-  if (userError || !isPlusActive(userData)) {
+  if (isHngrPlusEnabled() && (userError || !isPlusActive(userData))) {
     return NextResponse.json(
       { error: 'Hngr+ membership is required to access Pundit AI' },
       { status: 402 }

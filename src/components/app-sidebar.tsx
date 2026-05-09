@@ -15,7 +15,7 @@ import {
   Sparkles,
   RefreshCcw as Sync,
   Trophy,
-  HelpCircle
+  HelpCircle,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -30,7 +30,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { Button } from "./ui/button";
 import { SidebarUser } from "./sidebar-user";
 import { SeasonSelector } from "./season-selector";
@@ -91,13 +91,13 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent data-onboarding="sidebar" className="items-center list-none px-2">
-        <SignedIn>
+        <Show when="signed-in">
           {isExpanded && (
             <div className="py-2 border-b mb-2 w-full">
               <SeasonSelector className="flex-col items-start gap-2 w-full" />
             </div>
           )}
-        </SignedIn>
+        </Show>
 
         {data.items.map((item) => (
           <SidebarMenuItem key={item.title} className="w-full">
@@ -112,7 +112,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <div className="gap-2 transition-opacity duration-200 flex flex-col items-start">
-          <SignedIn>
+          <Show when="signed-in">
             <SidebarMenuItem className="w-full list-none">
               <SidebarMenuButton asChild onClick={startOnboarding}>
                 <button className="flex items-center gap-2 w-full cursor-pointer">
@@ -121,26 +121,34 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                 </button>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton>
-              <Button
-                className={`justify-center rounded-md py-2 px-4 font-medium transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-                  isExpanded ? "w-full" : "w-auto px-2"
-                }`}
-                variant={"default"}
-                size={isExpanded ? "default" : "icon"}
-                aria-label="authenticate"
-              >
-                <KeyRound className={isExpanded ? "h-4 w-4 mr-2" : "h-5 w-5"} />
-                {isExpanded && "authenticate"}
-              </Button>
-            </SignInButton>
-          </SignedOut>
+          </Show>
+          <Show when="signed-out">
+            <div className="flex flex-col gap-2 w-full">
+              <SignInButton>
+                <Button
+                  className={`justify-center rounded-md py-2 px-4 font-medium transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                    isExpanded ? "w-full" : "w-auto px-2"
+                  }`}
+                  variant={"default"}
+                  size={isExpanded ? "default" : "icon"}
+                  aria-label="authenticate"
+                >
+                  <KeyRound className={isExpanded ? "h-4 w-4 mr-2" : "h-5 w-5"} />
+                  {isExpanded && "authenticate"}
+                </Button>
+              </SignInButton>
+              <SidebarMenuButton asChild isActive={pathname === "/waitlist"}>
+                <a href="/waitlist" className="flex items-center gap-2">
+                  <BadgeCheck className="h-4 w-4" />
+                    <span>join waitlist</span>
+                </a>
+              </SidebarMenuButton>
+            </div>
+          </Show>
 
-          <SignedIn>
+          <Show when="signed-in">
             <SidebarUser showName={isExpanded} />
-          </SignedIn>
+          </Show>
         </div>
       </SidebarFooter>
       <SidebarRail />

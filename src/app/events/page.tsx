@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { isHngrPlusEnabled } from "@/lib/plus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,10 +45,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { SignedOut, SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { LoadingState } from "@/components/ui/loading-state";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
+
 const EVENT_TYPES: SimulationEventType[] = [
   "kill",
   "kill2",
@@ -485,15 +487,15 @@ export default function EventsPage() {
   if (authLoading || (isPlus && loading)) {
     return (
       <div className="container mx-auto px-4 py-16">
-        <LoadingState 
-          size="lg" 
+        <LoadingState
+          size="lg"
           text={authLoading ? "Checking membership status..." : "Loading arena events..."}
         />
       </div>
     );
   }
 
-  if (!isPlus) {
+  if (isHngrPlusEnabled() && !isPlus) {
     return (
       <div className="container mx-auto px-4 py-16">
         <Card className="mx-auto max-w-2xl border-dashed border-primary/40 bg-card/80 text-center">
@@ -512,7 +514,7 @@ export default function EventsPage() {
               </Link>
             </Button>
 
-            <SignedOut>
+            <Show when="signed-out">
               <SignInButton>
                 <Button
                   className={`justify-center rounded-md py-2 px-4 font-medium transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50`}
@@ -523,7 +525,7 @@ export default function EventsPage() {
                   log in
                 </Button>
               </SignInButton>
-            </SignedOut>
+            </Show>
           </CardContent>
         </Card>
       </div>
@@ -598,7 +600,7 @@ export default function EventsPage() {
           <NotebookPen className="h-5 w-5 text-primary" />
           <h2 className="text-2xl font-semibold">author a new happening</h2>
         </div>
-        {!isPlus ? (
+        {isHngrPlusEnabled() && !isPlus ? (
           <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-8 text-center">
             <p className="text-lg font-medium text-primary mb-2">
               reserved for hngr+

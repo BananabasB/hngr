@@ -313,11 +313,13 @@ function AcceptWithTributeDialog({
           reflexive: 'itself',
         },
         image: nomination.tribute_image_url || null,
+        bio: nomination.tribute_bio || '',
         id: nomination.id,
         district: district,
         relationships: {},
         health: { physical: 100, mental: 100 },
         foodLvl: 0,
+        inventory: {},
       };
 
       // Save to localStorage
@@ -594,4 +596,3 @@ function ReportDialog({
     </Dialog>
   );
 }
-

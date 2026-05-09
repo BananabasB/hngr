@@ -3,8 +3,8 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarPersistence } from "@/lib/sidebar-persistence";
-import { useAppState } from "@/lib/state-context";
 import { OnboardingOverlay } from "@/components/onboarding-overlay";
+import { usePathname } from "next/navigation";
 
 interface LayoutContentProps {
   children: React.ReactNode;
@@ -12,6 +12,24 @@ interface LayoutContentProps {
 }
 
 export function LayoutContent({ children, defaultOpen }: LayoutContentProps) {
+  const pathname = usePathname();
+  
+  // Routes that should NOT have a sidebar or app shell
+  const isPublicStandalone = 
+    pathname.startsWith("/waitlist") || 
+    pathname.startsWith("/public-nominate") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/sso-callback") ||
+    pathname.startsWith("/sign-up");
+
+  if (isPublicStandalone) {
+    return (
+      <main className="min-h-screen w-full bg-background flex flex-col">
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="relative h-screen w-screen flex bg-background">
       <SidebarProvider defaultOpen={defaultOpen}>

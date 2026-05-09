@@ -12,6 +12,7 @@ import { Gupter } from "next/font/google";
 import { OrderSummary } from "@/components/order-summary";
 import { Stripe as StripeLogo } from "@/components/ui/svgs/stripe";
 import { LoadingState } from "@/components/ui/loading-state";
+
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 
 const validateEmail = async (email: string, checkout: any) => {

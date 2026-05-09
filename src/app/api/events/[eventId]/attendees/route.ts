@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase/server';
+import { db } from '@/db';
+import { customEvents, eventAttendees } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
+import { getDbUserById, getRequestUserId, isPlusActive } from '@/lib/drizzle/server';
+import { serializeEventAttendee } from '@/lib/drizzle/serializers';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
 export async function POST(
   request: NextRequest,
@@ -7,41 +12,31 @@ export async function POST(
 ) {
   try {
     const { eventId } = await params;
-    const user = await getAuthenticatedUser();
+    const userId = await getRequestUserId(request);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
       );
     }
 
-    // Check if user can join this event
-    const { data: event, error: eventError } = await supabaseAdmin
-      .from('custom_events')
-      .select('is_public, max_attendees, event_attendees(count)')
-      .eq('id', eventId)
-      .single();
+    const event = await db.query.customEvents.findFirst({
+      where: (event: any, { eq }: any) => eq(event.id, eventId),
+      with: {
+        attendees: {
+          columns: { id: true },
+        },
+      },
+    });
 
-    if (eventError) throw eventError;
-
-    // Check if event is full
-    if (event.max_attendees && (event.event_attendees?.[0]?.count || 0) >= event.max_attendees) {
-      return NextResponse.json(
-        { error: 'Event is full' },
-        { status: 400 }
-      );
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    // For private events, verify user is hngr+ member
-    if (!event.is_public) {
-      const { data: userData, error: userError } = await supabaseAdmin
-        .from('users')
-        .select('is_plus, plus_expires_at')
-        .eq('id', user.id)
-        .single();
-
-      if (userError || !userData?.is_plus || (userData.plus_expires_at && new Date(userData.plus_expires_at) <= new Date())) {
+    if (!event.isPublic) {
+      const user = await getDbUserById(userId);
+      if (isHngrPlusEnabled() && !isPlusActive(user)) {
         return NextResponse.json(
           { error: 'hngr+ membership required to join private events' },
           { status: 403 }
@@ -49,26 +44,35 @@ export async function POST(
       }
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('event_attendees')
-      .insert({
-        event_id: eventId,
-        user_id: user.id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === '23505') { // Unique violation
-        return NextResponse.json(
-          { error: 'Already joined this event' },
-          { status: 400 }
-        );
-      }
-      throw error;
+    if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
+      return NextResponse.json(
+        { error: 'Event is full' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ data });
+    const existing = await db
+      .select()
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.userId, userId)))
+      .limit(1);
+
+    if (existing[0]) {
+      return NextResponse.json(
+        { error: 'Already joined this event' },
+        { status: 400 }
+      );
+    }
+
+    const created = await db
+      .insert(eventAttendees)
+      .values({
+        eventId,
+        userId,
+      })
+      .returning();
+
+    return NextResponse.json({ data: serializeEventAttendee(created[0]) });
   } catch (error: any) {
     console.error('Error joining event:', error);
     return NextResponse.json(
@@ -84,22 +88,18 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await params;
-    const user = await getAuthenticatedUser();
+    const userId = await getRequestUserId(request);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
       );
     }
 
-    const { error } = await supabaseAdmin
-      .from('event_attendees')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('user_id', user.id);
-
-    if (error) throw error;
+    await db
+      .delete(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.userId, userId)));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

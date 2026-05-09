@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { loadGame, simulateGame } from "@/lib/simulation";
+import { useState, useEffect } from "react";
+import { applyDepotStart, simulateGame } from "@/lib/simulation";
 import { HngrDB, Tribute } from "@/lib/setup";
+import { displayItemLabel, listInventoryItems } from "@/lib/inventory";
 import { Gupter } from "next/font/google";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "./ui/button";
-import { Shuffle, Trash, ChevronLeft, ChevronRight } from "lucide-react";
+import { Shuffle, Trash, ChevronLeft, ChevronRight, Settings2 } from "lucide-react";
 import { remove } from "@/lib/localStorage";
 import { useAppState } from "@/lib/state-context-refactored";
 import {
@@ -15,12 +16,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
   DialogClose,
 } from "./ui/dialog";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEPOT_PRESETS, getDepotPreset } from "@/lib/inventory";
 import { motion, AnimatePresence, PanInfo } from "motion/react";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
@@ -28,6 +32,8 @@ const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 type Props = {
   data: HngrDB;
 };
+
+const inventorySummaryLimit = 2;
 
 function shuffleArray<T>(arr: T[]) {
   const a = arr.slice();
@@ -42,30 +48,25 @@ export default function EventTimeline({ data }: Props) {
   const { setDb } = useAppState();
   
   const [eventsByDay, setEventsByDay] = useState<Record<number, import('@/lib/setup').Event[]>>(() => {
-    console.log('EventTimeline initializing:', {
-      'data.events': data.events,
-      'typeof data.events': typeof data.events,
-      'data.events keys': data.events ? Object.keys(data.events) : 'none',
-      'data.events length': data.events ? Object.keys(data.events).length : 0
-    });
-    
-    // Check if events exist and have actual content
     if (data.events && Object.keys(data.events).length > 0) {
-      console.log('Using saved events:', data.events);
       return data.events;
-    } else {
-      console.log('No saved events found, generating fresh ones');
-      return simulateGame(data);
     }
+
+    return {};
   });
 
-  // Save events function - call this explicitly when needed
-  const saveEvents = useCallback(() => {
-    if (setDb && data) {
-      const updatedDb = { ...data, events: eventsByDay };
-      setDb(updatedDb);
+  useEffect(() => {
+    if (data.events && Object.keys(data.events).length > 0) {
+      setEventsByDay(data.events);
+      return;
     }
-  }, [setDb, data, eventsByDay]);
+
+    setEventsByDay(simulateGame(data));
+  }, [data.events, data.depot?.presetId]);
+
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [eventsByDay]);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
@@ -83,7 +84,7 @@ export default function EventTimeline({ data }: Props) {
 
   const [dontRemindAgain, setDontRemindAgain] = useState(false);
 
-  const [maxDays, setMaxDays] = useState(10);
+  const [maxDays, setMaxDays] = useState(8);
   const [enableMobileSwipe, setEnableMobileSwipe] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -102,7 +103,8 @@ export default function EventTimeline({ data }: Props) {
 
   const generateShuffled = (db: HngrDB) => {
     // run a fresh simulation (simulateGame uses a deep-cloned db internally)
-    const fresh = simulateGame(db, maxDays);
+    const depotEvents = applyDepotStart(db);
+    const fresh = simulateGame(db, maxDays, depotEvents);
     const newByDay: Record<string, any[]> = {};
     for (const [day, events] of Object.entries(fresh)) {
       newByDay[day] = shuffleArray(events as any[]);
@@ -129,24 +131,32 @@ export default function EventTimeline({ data }: Props) {
       } catch (e) {}
     }
 
-    // Deep clone data and reset tributes' health and alive status
+    // Deep clone data and reset tributes' health and starting inventory.
     const clonedData: HngrDB = JSON.parse(JSON.stringify(data));
     for (const tributeId in clonedData.tributes) {
       const tribute = clonedData.tributes[tributeId];
       tribute.health = { mental: 100, physical: 100 };
+      tribute.inventory = {};
     }
+    clonedData.alliances = {};
 
     const newEvents = generateShuffled(clonedData);
 
-    try {
-      const hngrDbString = localStorage.getItem("hngrDb");
-      const hngrDb = hngrDbString ? JSON.parse(hngrDbString) : { ...data };
-      hngrDb.events = newEvents;
-      localStorage.setItem("hngrDb", JSON.stringify(hngrDb));
-    } catch (e) {}
+    setDb({ ...clonedData, events: newEvents });
 
     setEventsByDay(newEvents);
-    saveEvents(); // Save to database after shuffling
+  };
+
+  const updateDepotPreset = (presetId: string) => {
+    const next: HngrDB = JSON.parse(JSON.stringify(data));
+    next.depot = { presetId: presetId as keyof typeof DEPOT_PRESETS };
+    for (const tribute of Object.values(next.tributes)) {
+      tribute.health = { physical: 100, mental: 100 };
+      tribute.inventory = {};
+    }
+    next.alliances = {};
+    next.events = {};
+    setDb(next);
   };
 
   // Only shuffle if no events exist
@@ -217,59 +227,110 @@ export default function EventTimeline({ data }: Props) {
 
   return (
     <div className="flex flex-col text-center p-4 gap-6">
-      {/* shuffle button with confirmation dialog */}
-      {skipShuffleConfirm || dontRemindAgain ? (
-        <Button onClick={() => doShuffle()}>
-          <Shuffle /> shuffle
-        </Button>
-      ) : (
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        {skipShuffleConfirm || dontRemindAgain ? (
+          <Button onClick={() => doShuffle()}>
+            <Shuffle /> shuffle
+          </Button>
+        ) : (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Shuffle /> shuffle
+              </Button>
+            </DialogTrigger>
+
+            <DialogContent className="flex flex-col content-center text-center justify-center items-center gap-4">
+              <DialogHeader className="flex flex-col text-center content-center justify-center items-center">
+                <DialogTitle>shuffle events?</DialogTitle>
+                <DialogDescription className="text-center">
+                  This will clear your current stored events and replace them with
+                  a newly shuffled run.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="text-sm flex flex-row gap-3 justify-center">
+                <Checkbox
+                  id="dont-remind-again"
+                  checked={dontRemindAgain}
+                  onCheckedChange={(checked) =>
+                    setDontRemindAgain(checked === true)
+                  }
+                />
+                <Label htmlFor="dont-remind-again" className="select-none">
+                  don't remind me again
+                </Label>
+              </div>
+              <div className="flex gap-2 items-center">
+                <DialogClose asChild>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      doShuffle();
+                    }}
+                  >
+                    <Shuffle /> shuffle now
+                  </Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button variant="secondary" className="cursor-pointer">
+                    cancel
+                  </Button>
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         <Dialog>
           <DialogTrigger asChild>
-            <Button>
-              <Shuffle /> shuffle
+            <Button variant="outline">
+              <Settings2 className="w-4 h-4" /> depot
             </Button>
           </DialogTrigger>
-
-          <DialogContent className="flex flex-col content-center text-center justify-center items-center gap-4">
-            <DialogHeader className="flex flex-col text-center content-center justify-center items-center">
-              <DialogTitle>shuffle events?</DialogTitle>
-              <DialogDescription className="text-center">
-                this will clear your current stored events and replace them with
-                a newly shuffled run.
+          <DialogContent className="max-w-2xl flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Depot settings</DialogTitle>
+              <DialogDescription>
+                Pick the starting supplies preset. This resets the current run so the next shuffle uses the selected depot.
               </DialogDescription>
             </DialogHeader>
-            <div className="text-sm flex flex-row gap-3 justify-center">
-              <Checkbox
-                id="dont-remind-again"
-                checked={dontRemindAgain}
-                onCheckedChange={(checked) =>
-                  setDontRemindAgain(checked === true)
-                }
-              />
-              <Label htmlFor="dont-remind-again" className="select-none">
-                don't remind me again
-              </Label>
-            </div>
-            <div className="flex gap-2 items-center">
-              <DialogClose asChild>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    doShuffle();
-                  }}
-                >
-                  <Shuffle /> shuffle now
-                </Button>
-              </DialogClose>
-              <DialogClose asChild>
-                <Button variant="secondary" className="cursor-pointer">
-                  cancel
-                </Button>
-              </DialogClose>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>{getDepotPreset(data.depot?.presetId).label}</CardTitle>
+                <CardDescription>{getDepotPreset(data.depot?.presetId).description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="depot-preset">starting supplies</Label>
+                  <Select value={data.depot?.presetId ?? "balanced"} onValueChange={updateDepotPreset}>
+                    <SelectTrigger id="depot-preset" className="w-full">
+                      <SelectValue placeholder="Choose a preset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(DEPOT_PRESETS).map((preset) => (
+                        <SelectItem key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  The selected depot is applied to the next shuffle and to any fresh run when the event list is empty.
+                </div>
+                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                  {Object.entries(getDepotPreset(data.depot?.presetId).stock).map(([itemId, quantity]) => (
+                    <div key={itemId} className="flex items-center justify-between rounded-md border px-3 py-2">
+                      <span>{itemId}</span>
+                      <span>x{quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </DialogContent>
         </Dialog>
-      )}
+      </div>
 
       {/* slider for maxDays */}
       <div className="flex flex-row items-center justify-center gap-4">
@@ -398,6 +459,8 @@ export default function EventTimeline({ data }: Props) {
                         {Object.values(event.roles).map((tributeId: string) => {
                           const tribute: Tribute | undefined = data.tributes[tributeId];
                           if (!tribute) return null;
+                          const items = listInventoryItems(tribute.inventory);
+                          const displayItems = items.filter((item) => !(item.itemId === "bow" || item.itemId === "arrows" || item.itemId === "ration" || item.itemId === "medkit" || item.itemId === "camouflage") || item.quantity > 1);
                           return (
                             <motion.div
                               key={tribute.id}
@@ -416,7 +479,26 @@ export default function EventTimeline({ data }: Props) {
                                   <AvatarFallback>{tribute.name[0]}</AvatarFallback>
                                 )}
                               </Avatar>
-                              
+
+                              <div className="flex flex-wrap justify-center gap-1 max-w-28">
+                                {displayItems.length > 0 ? (
+                                  <>
+                                    {displayItems.slice(0, inventorySummaryLimit).map((item) => (
+                                      <Badge key={item.itemId} variant="secondary" className="text-[10px] px-2 py-0.5">
+                                        {displayItemLabel(item.itemId)} x{item.quantity}
+                                      </Badge>
+                                    ))}
+                                    {displayItems.length > inventorySummaryLimit && (
+                                      <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                        +{displayItems.length - inventorySummaryLimit} more
+                                      </Badge>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">no gear</span>
+                                )}
+                              </div>
+                               
                             </motion.div>
                           );
                         })}

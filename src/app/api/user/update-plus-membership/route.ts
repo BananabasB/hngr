@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase/server';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { getRequestUserId } from '@/lib/drizzle/server';
+import { serializeUser } from '@/lib/drizzle/serializers';
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify the user is authenticated
-    const user = await getAuthenticatedUser();
-    
-    if (!user) {
+    const userId = await getRequestUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { userId, isPlus, plusExpiresAt } = await request.json();
+    const { userId: requestedUserId, isPlus, plusExpiresAt } = await request.json();
 
-    if (!userId) {
+    if (!requestedUserId) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
@@ -20,31 +22,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'isPlus must be a boolean' }, { status: 400 });
     }
 
-    // Ensure the authenticated user is updating their own record or this is a webhook call
-    // You might want to add additional logic here for admin/webhook verification
-    if (userId !== user.id) {
+    if (requestedUserId !== userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Update user's plus membership status
-    const { data: userRecord, error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({
-        is_plus: isPlus,
-        plus_expires_at: plusExpiresAt || null,
-        updated_at: new Date().toISOString(),
+    const updated = await db
+      .update(users)
+      .set({
+        isPlus,
+        plusExpiresAt: plusExpiresAt ? new Date(plusExpiresAt) : null,
+        updatedAt: new Date(),
       })
-      .eq('id', userId)
-      .select()
-      .single();
+      .where(eq(users.id, requestedUserId))
+      .returning();
 
-    if (updateError) {
-      console.error('Error updating plus membership:', updateError);
-      return NextResponse.json({ error: 'Failed to update membership', details: updateError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, user: userRecord });
-
+    return NextResponse.json({ success: true, user: serializeUser(updated[0]) });
   } catch (error) {
     console.error('Unexpected error in update-plus-membership API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

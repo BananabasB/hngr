@@ -1,27 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@clerk/nextjs';
-import { setupDatabase, HngrDB } from './setup';
-import { updateReferralName as updateReferralNameUtil } from './database';
-import type { Tribute } from './setup';
-import type { Season, SeasonWithGames, Game } from './supabase/season-types';
-import { SeasonService } from './supabase/services/seasons';
-import { GameService } from './supabase/services/games';
-import { StorageService } from './storage-service';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { setupDatabase, HngrDB, normalizeDatabase } from "./setup";
+import { updateReferralName as updateReferralNameUtil } from "./database";
+import type { Season, SeasonWithGames, Game } from "./supabase/season-types";
+import { save, load } from "./localStorage";
 
 interface StateContextType {
   db: HngrDB | null;
   setDb: (db: HngrDB) => void;
   updateReferralName: (value: "tributes" | "volunteers" | "nominees") => void;
   saveDbToCurrentGame: () => Promise<void>;
-  // Season management
   currentSeason: Season | null;
   seasons: SeasonWithGames[];
   setCurrentSeason: (season: Season | null) => void;
   refreshSeasons: () => Promise<void>;
   createSeason: (name: string, description?: string) => Promise<Season>;
-  // Game management
   currentGame: Game | null;
   seasonGames: Game[];
   refreshGames: () => Promise<void>;
@@ -30,334 +25,387 @@ interface StateContextType {
 }
 
 const StateContext = createContext<StateContextType | null>(null);
+const LOCAL_SEASON_ID = "local-season";
+const LOCAL_GAME_ID = "local-game";
+
+function getCurrentSeasonId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("current-season-id");
+}
+
+function createLocalSeason(): SeasonWithGames {
+  const now = new Date().toISOString();
+  return {
+    id: LOCAL_SEASON_ID,
+    owner_id: "local",
+    name: "Local Season",
+    description: "Stored in this browser until Supabase is ready.",
+    status: "active",
+    current_game_id: LOCAL_GAME_ID,
+    created_at: now,
+    updated_at: now,
+    game_count: 1,
+    has_current_game: true,
+  };
+}
+
+function createLocalGame(db: HngrDB): Game {
+  const now = new Date().toISOString();
+  return {
+    id: LOCAL_GAME_ID,
+    owner_id: "local",
+    season_id: LOCAL_SEASON_ID,
+    name: "Local Game",
+    tribute_data: db,
+    game_number: 1,
+    is_current: true,
+    is_public: false,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+function loadLocalDb(): HngrDB {
+  return normalizeDatabase(load<HngrDB>("hngr-db") || setupDatabase());
+}
 
 export function StateProvider({ children }: { children: React.ReactNode }) {
-  const { getToken, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const [dbState, setDbState] = useState<HngrDB | null>(null);
   const [seasons, setSeasons] = useState<SeasonWithGames[]>([]);
   const [currentSeason, setCurrentSeasonState] = useState<Season | null>(null);
   const [seasonGames, setSeasonGames] = useState<Game[]>([]);
   const [currentGame, setCurrentGameState] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [usingLocalFallback, setUsingLocalFallback] = useState(false);
+  const currentSeasonRef = useRef<Season | null>(null);
+  const usingLocalFallbackRef = useRef(false);
 
-  const storageService = StorageService.getInstance();
-
-  // Initialize storage service with Supabase client
+  // Initialize local DB on mount
   useEffect(() => {
-    const initStorage = async () => {
-      try {
-        const token = await getToken({ template: 'supabase' });
-        if (!token) {
-          console.log('No token available, using unauthenticated client');
-          // Create unauthenticated client for read operations
-          const { createClient } = await import('@supabase/supabase-js');
-          const supabaseClient = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-          );
-          storageService.setSupabaseClient(supabaseClient);
-        } else {
-          // Create authenticated client with JWT token
-          const { createClient } = await import('@supabase/supabase-js');
-          const supabaseClient = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-            {
-              global: {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              },
-            }
-          );
-          storageService.setSupabaseClient(supabaseClient);
-        }
-      } catch (err) {
-        console.error('Failed to initialize storage:', err);
-        setError('Failed to initialize storage service');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!dbState) {
+      setDbState(loadLocalDb());
+    }
+  }, []);
 
-    if (isSignedIn) {
-      initStorage();
+  const activateLocalFallback = useCallback((dbOverride?: HngrDB) => {
+    const localDb = dbOverride || loadLocalDb();
+    const localSeason = createLocalSeason();
+    const localGame = createLocalGame(localDb);
+
+    usingLocalFallbackRef.current = true;
+    currentSeasonRef.current = localSeason;
+    setUsingLocalFallback(true);
+    setDbState(localDb);
+    setSeasons([localSeason]);
+    setCurrentSeasonState(localSeason);
+    setSeasonGames([localGame]);
+    setCurrentGameState(localGame);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("current-season-id", LOCAL_SEASON_ID);
+    }
+  }, []);
+
+  const setCurrentSeason = useCallback((season: Season | null) => {
+    currentSeasonRef.current = season;
+    setCurrentSeasonState(season);
+    if (typeof window === "undefined") return;
+    if (season) {
+      localStorage.setItem("current-season-id", season.id);
     } else {
-      setLoading(false);
+      localStorage.removeItem("current-season-id");
     }
-  }, [isSignedIn, getToken]);
+  }, []);
 
-  // Load seasons
-  const refreshSeasons = useCallback(async () => {
-    if (!isSignedIn) return;
-
-    try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) return;
-
-      const { createSupabaseClientWithToken } = await import('./supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
-
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) return;
-      const payload = JSON.parse(atob(tokenParts[1]));
-      const userId = payload.sub;
-      if (!userId) return;
-
-      const { data: seasons, error } = await supabaseClient
-        .from('seasons')
-        .select('*')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const seasonsWithCounts = await Promise.all(
-        (seasons || []).map(async (season) => {
-          const { count } = await supabaseClient
-            .from('games')
-            .select('*', { count: 'exact', head: true })
-            .eq('season_id', season.id);
-
-          return {
-            ...season,
-            game_count: count || 0,
-            has_current_game: !!season.current_game_id,
-          };
-        })
-      );
-
-      setSeasons(seasonsWithCounts);
-      setError(null);
-    } catch (error) {
-      console.error('Failed to refresh seasons:', error);
-      setError('Failed to load seasons');
-    }
-  }, [isSignedIn, getToken]);
-
-  // Load games for current season
   const refreshGames = useCallback(async () => {
-    if (!currentSeason || !isSignedIn) return;
+    const activeSeason = currentSeasonRef.current;
 
-    try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) return;
-
-      const { createSupabaseClientWithToken } = await import('./supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
-
-      const games = await GameService.getSeasonGames(supabaseClient, currentSeason.id);
-      setSeasonGames(games);
-
-      const current = games.find(g => g.is_current) || games[0];
-      setCurrentGameState(current || null);
-
-      // Load database from current game
-      if (current) {
-        const db = await storageService.getDatabase();
-        setDbState(db);
-      } else {
-        // No current game, create one
-        const database = setupDatabase();
-        setDbState(database);
-        
-        try {
-          const tokenParts = token.split('.');
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const userId = payload.sub;
-
-          await GameService.createGame(supabaseClient, {
-            name: "Game 1",
-            tribute_data: database,
-            season_id: currentSeason.id,
-            owner_id: userId,
-          });
-          
-          await refreshGames();
-        } catch (createError) {
-          console.error('Failed to create initial game:', createError);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to refresh games:', error);
-      setError('Failed to load games');
+    if (!activeSeason) {
       setSeasonGames([]);
       setCurrentGameState(null);
+      return;
     }
-  }, [currentSeason, isSignedIn, getToken]);
 
-  // Create season
-  const createSeason = useCallback(async (name: string, description?: string): Promise<Season> => {
-    if (!isSignedIn) {
-      throw new Error('User not signed in');
+    if (activeSeason.id === LOCAL_SEASON_ID || usingLocalFallbackRef.current) {
+      const localDb = loadLocalDb();
+      setDbState(localDb);
+      setSeasonGames([createLocalGame(localDb)]);
+      setCurrentGameState(createLocalGame(localDb));
+      return;
     }
 
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) {
-        throw new Error('User not authenticated - no token');
+      const response = await fetch(`/api/seasons/${activeSeason.id}/games`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch games (${response.status})`);
       }
 
-      const { createSupabaseClientWithToken } = await import('./supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
+      const games: Game[] = await response.json();
+      setSeasonGames(games);
 
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        throw new Error('Invalid token format');
+      const current = games.find((g) => g.is_current) || games[0] || null;
+      setCurrentGameState(current);
+
+      if (current?.tribute_data) {
+        setDbState(current.tribute_data);
+      } else {
+        const database = setupDatabase();
+        setDbState(database);
+
+        if (games.length === 0) {
+          await fetch(`/api/seasons/${activeSeason.id}/games`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: "Game 1",
+              tribute_data: database,
+              is_public: false,
+            }),
+          });
+
+          const refreshed = await fetch(`/api/seasons/${activeSeason.id}/games`);
+          if (refreshed.ok) {
+            const refreshedGames: Game[] = await refreshed.json();
+            setSeasonGames(refreshedGames);
+            const refreshedCurrent = refreshedGames.find((g) => g.is_current) || refreshedGames[0] || null;
+            setCurrentGameState(refreshedCurrent);
+            if (refreshedCurrent?.tribute_data) {
+              setDbState(refreshedCurrent.tribute_data);
+            }
+          }
+        }
       }
-
-      const payload = JSON.parse(atob(tokenParts[1]));
-      const userId = payload.sub;
-      if (!userId) {
-        throw new Error('User not authenticated - no user ID found in token');
-      }
-
-      const { data: season, error } = await supabaseClient
-        .from('seasons')
-        .insert({
-          name: name.trim(),
-          description: description?.trim() || undefined,
-          owner_id: userId,
-          status: 'active',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      await refreshSeasons();
-      return season;
     } catch (error) {
-      console.error("Failed to create season:", error);
-      throw error;
+      console.warn("Using local fallback for games:", error);
+      activateLocalFallback();
     }
-  }, [isSignedIn, getToken, refreshSeasons]);
+  }, [activateLocalFallback]);
 
-  // Create game
-  const createGame = useCallback(async (name: string, tributeData: any): Promise<Game> => {
-    if (!currentSeason) throw new Error('No season selected');
+  const refreshSeasons = useCallback(async () => {
+    if (!isLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      activateLocalFallback(loadLocalDb());
+      return;
+    }
 
     try {
-      const token = await getToken({ template: 'supabase' });
-      if (!token) {
-        throw new Error('User not authenticated - no token');
+      const response = await fetch("/api/seasons");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch seasons (${response.status})`);
       }
 
-      const { createSupabaseClientWithToken } = await import('./supabase/clerk-client');
-      const supabaseClient = createSupabaseClientWithToken(token);
+      const seasonsWithCounts: SeasonWithGames[] = await response.json();
+      setUsingLocalFallback(false);
+      usingLocalFallbackRef.current = false;
+      setSeasons(seasonsWithCounts);
 
-      const tokenParts = token.split('.');
-      const payload = JSON.parse(atob(tokenParts[1]));
-      const userId = payload.sub;
+      const savedSeasonId = getCurrentSeasonId();
+      const selectedSeason =
+        (savedSeasonId && seasonsWithCounts.find((season) => season.id === savedSeasonId)) ||
+        (currentSeasonRef.current && seasonsWithCounts.find((season) => season.id === currentSeasonRef.current?.id)) ||
+        seasonsWithCounts[0] ||
+        null;
 
-      const game = await GameService.createGame(supabaseClient, {
+      if (selectedSeason?.id !== currentSeasonRef.current?.id) {
+        setCurrentSeason(selectedSeason);
+      }
+    } catch (error) {
+      console.warn("Using local fallback for seasons:", error);
+      activateLocalFallback();
+    }
+  }, [isLoaded, isSignedIn, setCurrentSeason, activateLocalFallback]);
+
+  const createSeason = useCallback(async (name: string, description?: string): Promise<Season> => {
+    if (usingLocalFallback) {
+      const season: Season = {
+        ...createLocalSeason(),
+        name: name.trim(),
+        description: description?.trim() || null,
+      };
+      setSeasons([season as SeasonWithGames]);
+      setCurrentSeason(season);
+      return season;
+    }
+
+    const response = await fetch("/api/seasons", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to create season (${response.status})`);
+    }
+
+    const season: Season = await response.json();
+    await refreshSeasons();
+    return season;
+  }, [refreshSeasons, setCurrentSeason, usingLocalFallback]);
+
+  const createGame = useCallback(async (name: string, tributeData: any): Promise<Game> => {
+    const activeSeason = currentSeasonRef.current;
+    if (!activeSeason) throw new Error("No season selected");
+
+    if (activeSeason.id === LOCAL_SEASON_ID || usingLocalFallbackRef.current) {
+      const localDb = tributeData as HngrDB;
+      save("hngr-db", localDb);
+      setDbState(localDb);
+      const game = {
+        ...createLocalGame(localDb),
+        name: name.trim(),
+      };
+      setSeasonGames([game]);
+      setCurrentGameState(game);
+      return game;
+    }
+
+    const response = await fetch(`/api/seasons/${activeSeason.id}/games`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         name,
         tribute_data: tributeData,
-        season_id: currentSeason.id,
-        owner_id: userId,
-      });
-      
-      await refreshGames();
-      return game;
-    } catch (error) {
-      console.error('Failed to create game:', error);
-      throw error;
-    }
-  }, [currentSeason, getToken, refreshGames]);
+        is_public: false,
+      }),
+    });
 
-  // Set current season
-  const setCurrentSeason = useCallback(async (season: Season | null) => {
-    setCurrentSeasonState(season);
-    if (season) {
-      await storageService.setCurrentSeason(season);
-    } else {
-      await storageService.setCurrentSeason(null);
+    if (!response.ok) {
+      throw new Error(`Failed to create game (${response.status})`);
     }
-  }, []);
 
-  // Set current game
-  const handleSetCurrentGame = useCallback(async (game: Game | null) => {
+    const game: Game = await response.json();
+    await refreshGames();
+    return game;
+  }, [refreshGames]);
+
+  const setCurrentGame = useCallback(async (game: Game | null) => {
     setCurrentGameState(game);
-    if (game) {
-      await storageService.setCurrentGame(game.id);
-    }
-  }, []);
+    const activeSeason = currentSeasonRef.current;
+    if (!activeSeason) return;
 
-  // Save database
+    if (activeSeason.id === LOCAL_SEASON_ID || usingLocalFallbackRef.current) {
+      return;
+    }
+
+    if (game) {
+      const response = await fetch(`/api/seasons/${activeSeason.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_game_id: game.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to set current game (${response.status})`);
+      }
+      await refreshGames();
+    } else {
+      const response = await fetch(`/api/seasons/${activeSeason.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_game_id: null }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to clear current game (${response.status})`);
+      }
+    }
+  }, [refreshGames]);
+
   const saveDbToCurrentGame = useCallback(async () => {
     if (!dbState) return;
 
-    try {
-      await storageService.saveDatabase(dbState);
-    } catch (error) {
-      console.error('Failed to save db to game:', error);
-      throw error;
-    }
-  }, [dbState]);
+    save("hngr-db", dbState);
 
-  // Update referral name
+    if (!currentGame || currentGame.id === LOCAL_GAME_ID || usingLocalFallbackRef.current) {
+      return;
+    }
+
+    const response = await fetch(`/api/games/${currentGame.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tribute_data: dbState,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save game (${response.status})`);
+    }
+  }, [dbState, currentGame]);
+
   const handleUpdateReferralName = useCallback((value: "tributes" | "volunteers" | "nominees") => {
     if (!dbState) return;
     const updated = updateReferralNameUtil(dbState, value);
     setDbState(updated);
-    saveDbToCurrentGame();
+    void saveDbToCurrentGame();
   }, [dbState, saveDbToCurrentGame]);
 
-  // Set db with auto-save
   const setDb = useCallback((newDb: HngrDB) => {
     setDbState(newDb);
-    saveDbToCurrentGame();
+    void saveDbToCurrentGame();
   }, [saveDbToCurrentGame]);
 
-  // Load initial data
   useEffect(() => {
-    if (isSignedIn && !loading) {
-      refreshSeasons();
+    if (!isLoaded) {
+      return;
     }
-  }, [isSignedIn, loading, refreshSeasons]);
 
-  // Load games when season changes
+    if (!isSignedIn) {
+      activateLocalFallback(loadLocalDb());
+      setLoading(false);
+      return;
+    }
+
+    const load = async () => {
+      setLoading(true);
+      await refreshSeasons();
+      setLoading(false);
+    };
+
+    void load();
+  }, [isLoaded, isSignedIn, refreshSeasons, setCurrentSeason, activateLocalFallback]);
+
   useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
     if (currentSeason && isSignedIn) {
-      refreshGames();
+      void refreshGames();
     } else {
       setSeasonGames([]);
       setCurrentGameState(null);
     }
-  }, [currentSeason, isSignedIn, refreshGames]);
+  }, [currentSeason, isLoaded, isSignedIn, refreshGames]);
 
-  // Load saved current season
   useEffect(() => {
-    if (seasons.length > 0) {
-      const loadSavedSeason = async () => {
-        const savedSeason = await storageService.getCurrentSeason();
-        if (savedSeason) {
-          setCurrentSeason(savedSeason);
-        } else if (seasons.length > 0) {
-          setCurrentSeason(seasons[0]);
-        }
-      };
-      loadSavedSeason();
+    if (seasons.length > 0 && !getCurrentSeasonId()) {
+      setCurrentSeason(seasons[0]);
     }
   }, [seasons, setCurrentSeason]);
 
   return (
-    <StateContext.Provider value={{
-      db: dbState,
-      setDb,
-      updateReferralName: handleUpdateReferralName,
-      saveDbToCurrentGame,
-      seasons,
-      currentSeason,
-      setCurrentSeason,
-      seasonGames,
-      currentGame,
-      setCurrentGame: handleSetCurrentGame,
-      refreshSeasons,
-      createSeason,
-      refreshGames,
-      createGame,
-    }}>
+    <StateContext.Provider
+      value={{
+        db: dbState,
+        setDb,
+        updateReferralName: handleUpdateReferralName,
+        saveDbToCurrentGame,
+        seasons,
+        currentSeason,
+        setCurrentSeason,
+        seasonGames,
+        currentGame,
+        setCurrentGame,
+        refreshSeasons,
+        createSeason,
+        refreshGames,
+        createGame,
+      }}
+    >
       {children}
     </StateContext.Provider>
   );
@@ -366,7 +414,7 @@ export function StateProvider({ children }: { children: React.ReactNode }) {
 export function useAppState() {
   const context = useContext(StateContext);
   if (!context) {
-    throw new Error('useAppState must be used within a StateProvider');
+    throw new Error("useAppState must be used within a StateProvider");
   }
   return context;
 }

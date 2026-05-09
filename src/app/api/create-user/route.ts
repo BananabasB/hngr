@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/server';
 import { auth } from '@clerk/nextjs/server';
+import { userRepository } from '@/repositories/drizzle/user.repository';
+import { serializeUser } from '@/lib/drizzle/serializers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,29 +23,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Use upsert to handle both creation and updates
-    const { data: userRecord, error: upsertError } = await supabaseAdmin
-      .from('users')
-      .upsert({
-        id: userId,
-        email: email,
-        username: username || null,
-        display_name: displayName || null,
-        avatar_url: avatarUrl || null,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id',
-        ignoreDuplicates: false
-      })
-      .select()
-      .single();
+    const userData = {
+      id: userId,
+      email,
+      username: username || null,
+      displayName: displayName || null,
+      avatarUrl: avatarUrl || null,
+    };
 
-    if (upsertError) {
-      console.error('Error upserting user:', upsertError);
-      return NextResponse.json({ error: 'Failed to upsert user', details: upsertError.message }, { status: 500 });
+    let userRecord;
+    try {
+      userRecord = await userRepository.syncUser(userData);
+    } catch (upsertError: any) {
+      // Username collisions are non-critical; retry without username so auth can proceed.
+      if (userData.username) {
+        userRecord = await userRepository.syncUser({
+          ...userData,
+          username: null,
+        });
+      } else {
+        console.error('Error upserting user:', upsertError);
+        return NextResponse.json({ error: upsertError.message || 'Failed to upsert user' }, { status: 500 });
+      }
     }
 
-    return NextResponse.json({ success: true, user: userRecord });
+    return NextResponse.json({ success: true, user: serializeUser(userRecord) });
 
   } catch (error) {
     console.error('Unexpected error in create-user API:', error);

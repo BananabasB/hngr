@@ -1,6 +1,6 @@
 import { BowArrow } from "lucide-react";
-import { Gupter } from "next/font/google";
 import { OnboardingDemo } from "@/components/onboarding-demo";
+import { Gupter } from "next/font/google";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 

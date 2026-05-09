@@ -43,8 +43,7 @@ export async function fetchBefriendersHotlines(countryCode: string = 'GB'): Prom
 }
 
 /**
- * Samaritans Radar API - UK Mental Health Services
- * This is a hypothetical API - in reality, Samaritans provides some data via their website
+ * Samaritans UK Mental Health Services
  */
 export async function fetchSamaritansServices(): Promise<ApiMentalHealthResource[]> {
   try {

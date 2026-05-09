@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth';
 import { CreateCustomEventRequest } from '@/lib/supabase/types';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
 export default function CreateEventPage() {
   const [formData, setFormData] = useState<CreateCustomEventRequest>({
@@ -28,7 +29,7 @@ export default function CreateEventPage() {
   const { user } = useAuth();
 
   // Check if user is hngr+ member
-  if (!user?.is_plus) {
+  if (isHngrPlusEnabled() && !user?.is_plus) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
@@ -48,6 +49,12 @@ export default function CreateEventPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (!user) {
+      setError('You must be signed in to create an event');
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/events', {
@@ -73,7 +80,7 @@ export default function CreateEventPage() {
     }
   };
 
-  const handleInputChange = (field: keyof CreateCustomEventRequest, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof CreateCustomEventRequest, value: string | number | boolean | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

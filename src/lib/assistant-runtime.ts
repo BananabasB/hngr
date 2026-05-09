@@ -1,5 +1,5 @@
-import { useChatRuntime } from "@assistant-ui/react";
-import { useChat } from "ai/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChat } from "@ai-sdk/react";
 
 export function useCustomChatRuntime({ api }: { api: string }) {
   const chat = useChat({

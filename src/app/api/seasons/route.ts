@@ -1,37 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthenticatedSupabaseClient, getAuthenticatedUser } from '@/lib/supabase/server';
+import { db } from '@/db';
+import { games, seasons } from '@/db/schema';
+import { desc, eq } from 'drizzle-orm';
+import { getRequestUserId } from '@/lib/drizzle/server';
+import { serializeSeason } from '@/lib/drizzle/serializers';
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser();
-    
-    if (!user) {
+    const userId = await getRequestUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createAuthenticatedSupabaseClient();
+    const userSeasons = await db
+      .select()
+      .from(seasons)
+      .where(eq(seasons.ownerId, userId))
+      .orderBy(desc(seasons.createdAt));
 
-    // Get seasons for the user
-    const { data: seasons, error } = await supabase
-      .from('seasons')
-      .select('*')
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    // Get game counts for each season
     const seasonsWithCounts = await Promise.all(
-      (seasons || []).map(async (season) => {
-        const { count } = await supabase
-          .from('games')
-          .select('*', { count: 'exact', head: true })
-          .eq('season_id', season.id);
+      userSeasons.map(async (season: any) => {
+        const seasonGames = await db
+          .select({ id: games.id })
+          .from(games)
+          .where(eq(games.seasonId, season.id));
 
         return {
-          ...season,
-          game_count: count || 0,
-          has_current_game: !!season.current_game_id,
+          ...serializeSeason(season),
+          game_count: seasonGames.length,
+          has_current_game: !!season.currentGameId,
         };
       })
     );
@@ -48,51 +45,32 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('POST /api/seasons - Starting request');
-    
-    const user = await getAuthenticatedUser();
-    
-    if (!user) {
-      console.log('User not authenticated');
+    const userId = await getRequestUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('User authenticated:', user.id);
-    const supabase = await createAuthenticatedSupabaseClient();
-
     const body = await request.json();
-    console.log('Request body:', body);
     const { name, description } = body;
 
     if (!name?.trim()) {
-      console.log('Missing season name');
       return NextResponse.json(
         { error: 'Season name is required' },
         { status: 400 }
       );
     }
 
-    // Create the season
-    console.log('Creating season with owner_id:', user.id);
-    const { data: season, error } = await supabase
-      .from('seasons')
-      .insert({
+    const inserted = await db
+      .insert(seasons)
+      .values({
+        ownerId: userId,
         name: name.trim(),
-        description: description?.trim() || undefined,
-        owner_id: user.id,
+        description: description?.trim() || null,
       })
-      .select()
-      .single();
+      .returning();
 
-    console.log('Season creation result:', { season, error });
-
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
-
-    console.log('Season created successfully:', season);
-    return NextResponse.json(season);
+    const season = inserted[0];
+    return NextResponse.json(serializeSeason(season));
   } catch (error) {
     console.error('Error creating season:', error);
     return NextResponse.json(

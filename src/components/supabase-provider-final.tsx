@@ -1,12 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useAuth as useClerkAuth } from '@clerk/nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/lib/database.types';
 
 interface SupabaseContextType {
-  supabase: ReturnType<typeof createClient<Database>>;
+  supabase: ReturnType<typeof createClient<Database>> | null;
   user: any;
   loading: boolean;
   error: string | null;
@@ -16,17 +16,20 @@ interface SupabaseContextType {
 const SupabaseContext = createContext<SupabaseContextType | null>(null);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
-  const { userId, getToken } = useClerkAuth();
+  const { userId } = useClerkAuth();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const supabase = useMemo(() => {
+    if (!supabaseUrl || !supabaseKey) return null;
+    return createClient<Database>(supabaseUrl, supabaseKey);
+  }, [supabaseKey, supabaseUrl]);
 
   const signOut = async () => {
+    if (!supabase) return;
     try {
       await supabase.auth.signOut();
       setUser(null);
@@ -38,6 +41,13 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!userId) {
       setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!supabase) {
+      setUser({ id: userId, aud: 'authenticated' });
+      setError(null);
       setLoading(false);
       return;
     }

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, getAuthenticatedUser } from '@/lib/supabase/server';
-
-function isPlusActive(user: { is_plus: boolean; plus_expires_at: string | null } | null) {
-  if (!user?.is_plus) return false;
-  if (!user.plus_expires_at) return true;
-  return new Date(user.plus_expires_at) > new Date();
-}
+import { db } from '@/db';
+import { customEvents } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { getDbUserById, getRequestUserId, isPlusActive } from '@/lib/drizzle/server';
+import { serializeCustomEvent } from '@/lib/drizzle/serializers';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
 export async function GET(
   request: NextRequest,
@@ -13,49 +12,57 @@ export async function GET(
 ) {
   try {
     const { eventId } = await params;
-    const user = await getAuthenticatedUser();
+    const userId = await getRequestUserId(request);
 
-    if (!user) {
-      return NextResponse.json({ error: 'User authentication required' }, { status: 401 });
+    const event = await db.query.customEvents.findFirst({
+      where: (event: any, { eq }: any) => eq(event.id, eventId),
+      with: {
+        creator: {
+          columns: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            isPlus: true,
+          },
+        },
+        attendees: {
+          columns: {
+            id: true,
+            userId: true,
+            joinedAt: true,
+          },
+          with: {
+            user: {
+              columns: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                isPlus: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const { data: requester, error: requesterError } = await supabaseAdmin
-      .from('users')
-      .select('is_plus, plus_expires_at')
-      .eq('id', user.id)
-      .single();
-
-    if (requesterError && requesterError.code !== 'PGRST116') {
-      console.error('Error verifying membership for events GET:', requesterError);
-      return NextResponse.json(
-        { error: 'Unable to verify membership status' },
-        { status: 500 }
-      );
-    }
-
-    if (!isPlusActive(requester ?? null)) {
-      return NextResponse.json({ error: 'hngr+ required' }, { status: 402 });
-    }
-
-    // Get event with attendees count
-    const { data: event, error: eventError } = await supabaseAdmin
-      .from('custom_events')
-      .select(`
-        *,
-        event_attendees(count),
-        users!custom_events_owner_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .eq('id', eventId)
-      .single();
-
-    if (eventError) {
-      if (eventError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    if (!event.isPublic) {
+      if (!userId) {
+        return NextResponse.json({ error: 'User authentication required' }, { status: 401 });
       }
-      throw eventError;
+
+      const user = await getDbUserById(userId);
+      if (isHngrPlusEnabled() && !isPlusActive(user)) {
+        return NextResponse.json({ error: 'hngr+ required' }, { status: 402 });
+      }
     }
 
-    return NextResponse.json({ data: event });
+    return NextResponse.json({ data: serializeCustomEvent(event) });
   } catch (error: any) {
     console.error('Error fetching event:', error);
     return NextResponse.json(
@@ -71,62 +78,60 @@ export async function PUT(
 ) {
   try {
     const { eventId } = await params;
-    const user = await getAuthenticatedUser();
+    const userId = await getRequestUserId(request);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
       );
     }
 
-    const eventData = await request.json();
-
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('is_plus, plus_expires_at')
-      .eq('id', user.id)
-      .single();
-
-    if (userError && userError.code !== 'PGRST116') {
-      console.error('Error verifying membership for event PUT:', userError);
-      return NextResponse.json(
-        { error: 'Unable to verify membership status' },
-        { status: 500 }
-      );
-    }
-
-    if (!isPlusActive(userData ?? null)) {
+    const user = await getDbUserById(userId);
+    if (isHngrPlusEnabled() && !isPlusActive(user)) {
       return NextResponse.json(
         { error: 'hngr+ membership required to edit events' },
         { status: 402 }
       );
     }
 
-    // Verify user is event creator
-    const { data: existingEvent, error: fetchError } = await supabaseAdmin
-      .from('custom_events')
-      .select('creator_id')
-      .eq('id', eventId)
-      .single();
+    const existingEvent = await db.query.customEvents.findFirst({
+      where: (event: any, { eq }: any) => eq(event.id, eventId),
+    });
 
-    if (fetchError || existingEvent?.creator_id !== user.id) {
+    if (!existingEvent) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+    if (existingEvent.creatorId !== userId) {
       return NextResponse.json(
         { error: 'Only event creator can update events' },
         { status: 403 }
       );
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('custom_events')
-      .update(eventData)
-      .eq('id', eventId)
-      .select()
-      .single();
+    const eventData = await request.json();
+    const nextEventDate = eventData.event_date ? new Date(eventData.event_date) : existingEvent.eventDate;
+    const nextTitle = eventData.title !== undefined ? eventData.title.trim() : existingEvent.title;
+    const nextDescription = eventData.description !== undefined ? eventData.description?.trim() || null : existingEvent.description;
+    const nextLocation = eventData.location !== undefined ? eventData.location?.trim() || null : existingEvent.location;
+    const nextMaxAttendees = eventData.max_attendees !== undefined ? eventData.max_attendees : existingEvent.maxAttendees;
+    const nextIsPublic = eventData.is_public !== undefined ? eventData.is_public : existingEvent.isPublic;
 
-    if (error) throw error;
+    const updated = await db
+      .update(customEvents)
+      .set({
+        updatedAt: new Date(),
+        eventDate: nextEventDate,
+        title: nextTitle,
+        description: nextDescription,
+        location: nextLocation,
+        maxAttendees: nextMaxAttendees,
+        isPublic: nextIsPublic,
+      })
+      .where(eq(customEvents.id, eventId))
+      .returning();
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data: serializeCustomEvent(updated[0]) });
   } catch (error: any) {
     console.error('Error updating event:', error);
     return NextResponse.json(
@@ -142,56 +147,38 @@ export async function DELETE(
 ) {
   try {
     const { eventId } = await params;
-    const user = await getAuthenticatedUser();
+    const userId = await getRequestUserId(request);
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json(
         { error: 'User authentication required' },
         { status: 401 }
       );
     }
 
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('is_plus, plus_expires_at')
-      .eq('id', user.id)
-      .single();
-
-    if (userError && userError.code !== 'PGRST116') {
-      console.error('Error verifying membership for event DELETE:', userError);
-      return NextResponse.json(
-        { error: 'Unable to verify membership status' },
-        { status: 500 }
-      );
-    }
-
-    if (!isPlusActive(userData ?? null)) {
+    const user = await getDbUserById(userId);
+    if (isHngrPlusEnabled() && !isPlusActive(user)) {
       return NextResponse.json(
         { error: 'hngr+ membership required to delete events' },
         { status: 402 }
       );
     }
 
-    // Verify user is event creator
-    const { data: existingEvent, error: fetchError } = await supabaseAdmin
-      .from('custom_events')
-      .select('creator_id')
-      .eq('id', eventId)
-      .single();
+    const existingEvent = await db.query.customEvents.findFirst({
+      where: (event: any, { eq }: any) => eq(event.id, eventId),
+    });
 
-    if (fetchError || existingEvent?.creator_id !== user.id) {
+    if (!existingEvent) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+    if (existingEvent.creatorId !== userId) {
       return NextResponse.json(
         { error: 'Only event creator can delete events' },
         { status: 403 }
       );
     }
 
-    const { error } = await supabaseAdmin
-      .from('custom_events')
-      .delete()
-      .eq('id', eventId);
-
-    if (error) throw error;
+    await db.delete(customEvents).where(eq(customEvents.id, eventId));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -2,9 +2,9 @@ export interface Season {
   id: string;
   owner_id: string;
   name: string;
-  description?: string;
-  status: 'active' | 'completed' | 'archived';
-  current_game_id?: string;
+  description: string | null;
+  status: 'draft' | 'active' | 'completed' | 'archived';
+  current_game_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,6 +1,7 @@
-import { randomUUID } from "crypto";
 import { save, load } from "./localStorage";
 import { v4 as uuidv4 } from 'uuid'
+import type { AllianceState, DepotConfig, Inventory } from "./inventory";
+import { cloneInventory } from "./inventory";
 
 export type Relationship = {
   trust: number; // -100 = hates them, 0 = neutral, 100 = fully trusts
@@ -17,6 +18,7 @@ export type Tribute = {
   relationships: Record<string, Relationship>; // keyed by other tribute IDs
   health: Health;
   foodLvl: number
+  inventory: Inventory;
 };
 // Color schemes extracted from globals.css (using hex values for Stripe compatibility)
 const colorSchemes = {
@@ -156,12 +158,54 @@ export type HngrDB = {
   tributeReferralName: { singular: string; plural: string };
   tributes: Record<string, Tribute>; // tribute ID -> Tribute
   events: Record<number, Event[]>;
+  depot: DepotConfig;
+  alliances: Record<string, AllianceState>;
 };
+
+export function normalizeDatabase(db: Partial<HngrDB> | null | undefined): HngrDB {
+  const base: HngrDB = {
+    tributeReferralName: db?.tributeReferralName ?? {
+      singular: "tribute",
+      plural: "tributes",
+    },
+    tributes: {},
+    events: Array.isArray(db?.events) ? {} : (db?.events ?? {}),
+    depot: {
+      presetId: db?.depot?.presetId ?? "balanced",
+    },
+    alliances: db?.alliances ?? {},
+  };
+
+  for (const [tributeId, tribute] of Object.entries(db?.tributes ?? {})) {
+    const relationships = tribute.relationships ?? {};
+    if (!relationships[tributeId]) {
+      relationships[tributeId] = { trust: 0, alliance: false };
+    }
+
+    base.tributes[tributeId] = {
+      ...tribute,
+      foodLvl: typeof tribute.foodLvl === "number" ? tribute.foodLvl : 0,
+      inventory: cloneInventory((tribute as Tribute).inventory),
+      relationships,
+      health: tribute.health ?? { physical: 100, mental: 100 },
+    } as Tribute;
+  }
+
+  for (const [allianceId, alliance] of Object.entries(db?.alliances ?? {})) {
+    base.alliances[allianceId] = {
+      id: alliance.id ?? allianceId,
+      memberIds: Array.isArray(alliance.memberIds) ? alliance.memberIds : [],
+      inventory: cloneInventory(alliance.inventory),
+    };
+  }
+
+  return base;
+}
 
 export function setupDatabase() {
   // see if it already exists
   const existing = load<HngrDB>("hngr-db");
-  if (existing) return existing;
+  if (existing) return normalizeDatabase(existing);
 
   // make fresh database
   const defaultDB: HngrDB = {
@@ -169,31 +213,37 @@ export function setupDatabase() {
       singular: "tribute",
       plural: "tributes",
     },
-    events: [],
+    events: {},
     tributes: {},
+    depot: {
+      presetId: "balanced",
+    },
+    alliances: {},
   };
 
   // Create tributes keyed by ID with district information
   for (let district = 1; district <= 12; district++) {
     for (let i = 0; i < 2; i++) {
       const id = uuidv4();
-      defaultDB.tributes[id] = {
-        name: "",
-        pronouns: { subject: "", object: "", possessive: "", reflexive: "" },
-        image: null,
-        bio: "",
-        health: { physical: 100, mental: 100},
-        foodLvl: 0,
-        id,
-        district,
-        relationships: {},
-      };
+        defaultDB.tributes[id] = {
+          name: "",
+          pronouns: { subject: "", object: "", possessive: "", reflexive: "" },
+          image: null,
+          bio: "",
+          health: { physical: 100, mental: 100},
+          foodLvl: 0,
+          inventory: {},
+          id,
+          district,
+          relationships: {},
+        };
     }
   }
 
   // Populate relationships for each tribute with neutral trust and no alliance for every other tribute
   const allTributes = Object.values(defaultDB.tributes);
   for (const tribute of allTributes) {
+    tribute.relationships[tribute.id] = { trust: 0, alliance: false };
     for (const otherTribute of allTributes) {
       if (tribute.id !== otherTribute.id) {
         tribute.relationships[otherTribute.id] = { trust: 0, alliance: false };
@@ -202,5 +252,5 @@ export function setupDatabase() {
   }
 
   save("hngr-db", defaultDB);
-  return defaultDB;
+  return normalizeDatabase(defaultDB);
 }

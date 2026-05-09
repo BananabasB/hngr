@@ -9,12 +9,17 @@ import { ClerkWordmarkDark } from "@/components/ui/svgs/clerkWordmarkDark";
 import { ClerkWordmarkLight } from "@/components/ui/svgs/clerkWordmarkLight";
 import { Google } from "@/components/ui/svgs/google";
 import { cn } from "@/lib/utils";
-import * as Clerk from "@clerk/elements/common";
-import * as SignUp from "@clerk/elements/sign-up";
-import { BowArrow, KeyRound, MailOpen } from "lucide-react";
+import { useSignUp } from "@clerk/nextjs/legacy";
+import { BowArrow, KeyRound, MailOpen, Loader2 } from "lucide-react";
+import { SiDiscord, SiLine } from "@icons-pack/react-simple-icons";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Gupter, Roboto } from "next/font/google";
-import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
 const roboto = Roboto({
@@ -22,7 +27,6 @@ const roboto = Roboto({
   subsets: ["latin"],
 });
 
-// ... (EmailProviderButton remains the same) ...
 function EmailProviderButton({ email }: { email: string | null }) {
   if (!email) return null;
   const domain = email.split("@")[1]?.toLowerCase();
@@ -60,180 +64,269 @@ function EmailProviderButton({ email }: { email: string | null }) {
 }
 
 export default function SignUpPage() {
+  const { isLoaded, signUp, setActive } = useSignUp();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const emailFromUrl = searchParams.get("email");
   const redirected = searchParams.get("redirected") === "true";
 
-  const [email, setEmail] = useState<string | null>(emailFromUrl);
-  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string>(emailFromUrl || "");
+  const [username, setUsername] = useState<string>("");
+  const [code, setCode] = useState<string>("");
+  const [step, setStep] = useState<"start" | "verifications">("start");
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // 1. Create a ref for the input
-  const emailInputRef = useRef<HTMLInputElement>(null);
-
-  // 2. Use Effect to manually "type" the value into the input so Clerk detects it
   useEffect(() => {
-    if (emailFromUrl && emailInputRef.current) {
-      const input = emailInputRef.current;
-
-      // This setter hack forces React/Clerk to see the change
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        "value"
-      )?.set;
-
-      if (nativeInputValueSetter) {
-        nativeInputValueSetter.call(input, emailFromUrl);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      }
+    if (emailFromUrl) {
+      setEmail(emailFromUrl);
     }
   }, [emailFromUrl]);
 
+  const handleGoogleClick = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
+  };
+
+  const handleDiscordClick = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_discord",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
+  };
+
+  const handleLineClick = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_line",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/",
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Something went wrong");
+    }
+  };
+
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded || !email || !username) return;
+
+    setVerifying(true);
+    setError(null);
+
+    try {
+      await signUp.create({
+        emailAddress: email,
+        username,
+      });
+
+      await signUp.prepareEmailAddressVerification({
+        strategy: "email_code",
+      });
+
+      setStep("verifications");
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Failed to create account");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent | string) => {
+    if (typeof e !== "string") e.preventDefault();
+    const verificationCode = typeof e === "string" ? e : code;
+
+    if (!isLoaded || !verificationCode) return;
+
+    setVerifying(true);
+    setError(null);
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.push("/");
+      } else {
+        console.error("Sign up status not complete:", result.status);
+        setError("Something went wrong during verification");
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || "Invalid code");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (!isLoaded) return null;
+
   return (
     <div className="flex flex-col gap-5 min-h-screen items-center text-center justify-center">
-      <SignUp.Root>
-        <div className="max-w-100 gap-5 flex flex-col">
-          <SignUp.Step name="start">
-            <div className="flex w-full max-w-md mx-auto flex-col gap-6">
-              <div className="gap-2">
-                <div className="mx-auto flex size-8 items-center justify-center rounded-md">
-                  <BowArrow className="size-6" />
-                </div>
-                <span className="sr-only">hngr</span>
-                <h1 className={`text-3xl ${gupter.className}`}>
-                  {redirected ? "sign in or sign up" : "create an account"}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {redirected
-                    ? "we'll check if you have an account with us, and create one if you don't."
-                    : "welcome to hngr! let's get you set up."}
-                </p>
+      <div className="max-w-100 gap-5 flex flex-col">
+        {step === "start" ? (
+          <div className="flex w-full max-w-md mx-auto flex-col gap-6">
+            <div className="gap-2">
+              <div className="mx-auto flex size-8 items-center justify-center rounded-md">
+                <BowArrow className="size-6" />
               </div>
-              <Button
-                asChild
-                className={`w-full rounded-full ${roboto.className} font-medium`}
-                variant="outline"
-              >
-                <Clerk.Connection
-                  name="google"
-                  className="flex w-full items-center justify-center gap-2"
-                >
-                  <Google className="size-5 flex-none" />
-                  <span className="flex-1 text-center">
-                    Continue with Google
-                  </span>
-                </Clerk.Connection>
+              <span className="sr-only">hngr</span>
+              <h1 className={`text-3xl ${gupter.className}`}>
+                {redirected ? "sign in or sign up" : "create an account"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {redirected
+                  ? "we'll check if you have an account with us, and create one if you don't."
+                  : "welcome to hngr! let's get you set up."}
+              </p>
+            </div>
+            <Button
+              className={`w-full rounded-full ${roboto.className} font-medium`}
+              variant="outline"
+              onClick={handleGoogleClick}
+            >
+              <Google className="size-5 flex-none" />
+              <span className="flex-1 text-center">
+                Continue with Google
+              </span>
+            </Button>
+            <Button
+              className={`font-[family-name:var(--font-gg-sans)] w-full rounded-lg bg-[#5865F2] text-white hover:bg-[#4752C4] active:bg-[#3C45A5] font-medium`}
+              onClick={handleDiscordClick}
+            >
+              <span className="flex-1 text-center flex items-center justify-center gap-2">
+                <SiDiscord className="size-5 flex-none" />
+                Continue with Discord
+              </span>
+            </Button>
+            <Button
+              className={`w-full rounded-lg bg-brand-line-bg text-white pl-1 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active ${roboto.className} font-medium`}
+              onClick={handleLineClick}
+            >
+              <span className="flex justify-items-start items-center border-r border-brand-line-line pr-2 h-full">
+                <SiLine className="text-white size-5" />
+              </span>
+              <span className="flex-1 text-center flex items-center justify-center gap-2">
+                Continue with LINE
+              </span>
+            </Button>
+            <FieldSeparator>or</FieldSeparator>
+
+            <form onSubmit={handleSignUpSubmit} className="gap-4 flex flex-col">
+              <div className="gap-2 flex flex-col text-left">
+                <Label htmlFor="email">email address</Label>
+                <Input
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  placeholder="email@example.com"
+                  required
+                />
+              </div>
+
+              <div className="gap-2 flex flex-col text-left">
+                <Label htmlFor="username">username</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="pick a username"
+                  required
+                />
+              </div>
+
+              {error && <p className="text-destructive text-sm text-left">{error}</p>}
+
+              <Button type="submit" disabled={verifying}>
+                {verifying ? <Loader2 className="animate-spin" /> : <MailOpen />}
+                send me a code
               </Button>
-              <FieldSeparator>or</FieldSeparator>
+            </form>
 
-              <Clerk.Field name="emailAddress" className="gap-2 flex flex-col">
-                <Label asChild>
-                  <Clerk.Label>email address</Clerk.Label>
-                </Label>
-                <Clerk.Input asChild>
-                  <Input
-                    // 3. Attach ref here
-                    ref={emailInputRef}
-                    // 4. Remove value AND defaultValue. Let Clerk control it.
-                    // 5. Keep onChange to update YOUR local state (for display only)
-                    onChange={(e) => setEmail(e.target.value)}
-                    type="email"
-                  />
-                </Clerk.Input>
-                <Clerk.FieldError className="block text-destructive text-sm" />
-              </Clerk.Field>
+            <div className="flex items-center w-full justify-center gap-2">
+              <Alert className="text-start">
+                <KeyRound />
+                <AlertTitle>we're passwordless</AlertTitle>
+                <AlertDescription>
+                  passwords are a hassle and make using websites a mess.
+                  that's why hngr doesn't use passwords.
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-w-80 flex-col gap-6">
+            <h1>check your email</h1>
+            <p>we sent a code to {email}.</p>
 
-              <Clerk.Field name="username" className="gap-2 flex flex-col">
-                <Clerk.Label asChild>
-                  <Label>username</Label>
-                </Clerk.Label>
-                <Clerk.Input asChild>
-                  <Input
-                    value={username ?? ""}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="pick a username"
-                  />
-                </Clerk.Input>
-                <Clerk.FieldError className="block text-destructive text-sm" />
-              </Clerk.Field>
+            <EmailProviderButton email={email} />
 
-              {/* 6. Fixed nesting error: Button inside Action, Captcha outside */}
-              <SignUp.Action submit asChild>
-                <Button>
-                  <MailOpen />
-                  send me a code
-                </Button>
-              </SignUp.Action>
-              <div id="clerk-captcha" />
-
-              <div className="flex items-center w-full justify-center gap-2">
-                <Alert className="text-start">
-                  <KeyRound />
-                  <AlertTitle>we're passwordless</AlertTitle>
-                  <AlertDescription>
-                    passwords are a hassle and make using websites a mess.
-                    that's why hngr doesn't use passwords.
-                  </AlertDescription>
-                </Alert>
+            <form onSubmit={handleVerify} className="gap-2 flex flex-col">
+              <Label htmlFor="code">email code</Label>
+              <div className="w-full">
+                <InputOTP
+                  id="code"
+                  className="w-full"
+                  containerClassName="w-full"
+                  maxLength={6}
+                  value={code}
+                  onChange={(val) => {
+                    setCode(val);
+                    if (val.length === 6) handleVerify(val);
+                  }}
+                  autoFocus
+                >
+                  <InputOTPGroup className="w-full">
+                    {[...Array(6)].map((_, i) => (
+                      <InputOTPSlot
+                        key={i}
+                        index={i}
+                        className="h-20 w-full flex-1 text-2xl"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
               </div>
-            </div>
-          </SignUp.Step>
+              {error && <p className="text-destructive text-sm">{error}</p>}
 
-          <SignUp.Step name="verifications">
-            <div className="flex min-w-80 flex-col gap-6">
-              <SignUp.Strategy name="email_code">
-                <h1>check your email</h1>
-                <p>we sent a code to {email}.</p>
-
-                <EmailProviderButton email={email} />
-
-                <Clerk.Field name="code" className="gap-2 flex flex-col">
-                  <Clerk.Label asChild>
-                    <Label>email code</Label>
-                  </Clerk.Label>
-                  <Clerk.Input
-                    type="otp"
-                    className="flex min-w-full justify-center has-[:disabled]:opacity-50"
-                    autoSubmit
-                    render={({ value, status }) => {
-                      return (
-                        <div
-                          data-status={status}
-                          className={cn(
-                            "relative flex w-full h-20 text-2xl  items-center justify-center border-y border-r border-input transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-                            {
-                              "z-10 ring-2 ring-ring ring-offset-background":
-                                status === "cursor" || status === "selected",
-                            }
-                          )}
-                        >
-                          {value}
-                          {status === "cursor" && (
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                              <div className="animate-caret-blink h-4 w-px duration-1000" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }}
-                  />
-                  <Clerk.FieldError />
-                </Clerk.Field>
-
-                <SignUp.Action submit asChild>
-                  <Button>continue</Button>
-                </SignUp.Action>
-              </SignUp.Strategy>
-            </div>
-          </SignUp.Step>
-        </div>
-      </SignUp.Root>
+              <Button type="submit" disabled={verifying || code.length < 6} className="mt-4">
+                {verifying ? <Loader2 className="animate-spin" /> : "continue"}
+              </Button>
+              <Button
+                variant="link"
+                onClick={() => setStep("start")}
+                className="text-muted-foreground"
+              >
+                go back
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-center gap-2">
         <p className="text-muted-foreground text-sm">secured by</p>
-        <a href="https://go.clerk.com/components" className="flex items-center">
+        <div className="flex items-center">
           <ClerkWordmarkDark className="hidden dark:inline h-4" />
           <ClerkWordmarkLight className="inline dark:hidden h-4" />
-        </a>
+        </div>
       </div>
     </div>
   );

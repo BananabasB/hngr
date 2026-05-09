@@ -1,18 +1,15 @@
 "use client";
 import { templates } from "./events";
-import { HngrDB, Tribute, EventTemplate, Event } from "./setup";
-import { killTribute, adjustTrust } from "./social";
+import { HngrDB, Tribute, EventTemplate, Event, normalizeDatabase } from "./setup";
+import { addItem, getDepotPreset, inventoryToPool, ITEM_LABELS } from "./inventory";
 
 function getAliveTributes(db: HngrDB | null | undefined): Tribute[] {
   if (!db || !db.tributes) return [];
   return Object.values(db.tributes).filter((t: any) => t?.health?.physical > 0);
 }
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function renderText(
+// kept just in case — renders a description template into a string
+export function renderText(
   parts: (string | { role: string; prop: string })[],
   roles: Record<string, Tribute>
 ): string {
@@ -66,64 +63,132 @@ function maybeSwapRoles<T>(
   return roles;
 }
 
-export function simulateDay(db: HngrDB): Event[] {
-  const dbCopy = cloneDb(db);
+function summarizePickedItems(itemIds: string[]) {
+  const counts = new Map<string, number>();
+  for (const itemId of itemIds) {
+    counts.set(itemId, (counts.get(itemId) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([itemId, quantity]) => {
+      const label = ITEM_LABELS[itemId] ?? itemId;
+      return quantity === 1 ? label : `${quantity} ${label.toLowerCase()}`;
+    })
+    .join(", ")
+    .replace(/, ([^,]*)$/, " and $1");
+}
+
+export function applyDepotStart(db: HngrDB): Event[] {
+  const preset = getDepotPreset(db.depot?.presetId);
+  const lootPool = shuffleArray(inventoryToPool(preset.stock));
+  const recipients = shuffleArray(getAliveTributes(db));
   const events: Event[] = [];
-  const alive = getAliveTributes(dbCopy);
-  const iterations = 8 + Math.floor(Math.random() * 3); // 8 to 10 events per day
+
+  if (lootPool.length === 0 || recipients.length === 0) {
+    return events;
+  }
+
+  for (const tribute of recipients) {
+    if (lootPool.length === 0) break;
+
+    const takeCount = Math.min(2, lootPool.length);
+    const picked: string[] = [];
+
+    for (let i = 0; i < takeCount; i++) {
+      const itemId = lootPool.shift();
+      if (!itemId) break;
+      addItem(tribute.inventory, itemId, 1);
+      picked.push(itemId);
+    }
+
+    if (picked.length === 0) continue;
+
+    events.push({
+      id: `depot-${tribute.id}-${events.length + 1}`,
+      templateId: "depot",
+      description: [
+        { role: "tribute", prop: "name" },
+        " claims ",
+        summarizePickedItems(picked),
+        " from the Depot.",
+      ],
+      roles: { tribute: tribute.id },
+      day: 1,
+    });
+  }
+
+  if (events.length === 0) {
+    const firstTribute = recipients[0];
+    if (firstTribute) {
+      events.push({
+        id: `depot-${firstTribute.id}-1`,
+        templateId: "depot",
+        description: [
+          { role: "tribute", prop: "name" },
+          " reaches the Depot, but it is already stripped bare.",
+        ],
+        roles: { tribute: firstTribute.id },
+        day: 1,
+      });
+    }
+  }
+
+  return events;
+}
+
+export function simulateDay(db: HngrDB, templatePool: EventTemplate[] = templates): Event[] {
+  const events: Event[] = [];
+  const alive = getAliveTributes(db);
+  const baseIterations = 6 + Math.floor(Math.random() * 3); // 6 to 8 events per day
+  const iterations = Math.min(baseIterations, Math.max(1, alive.length + 1));
 
   for (let i = 0; i < iterations; i++) {
-    const shuffledTemplates = shuffleArray(templates);
+    const shuffledTemplates = shuffleArray(templatePool);
+    // FIX #3: track which tributes are already used this iteration slot
+    // note: scoped per-slot, not per whole day — move this Set outside the
+    // loop if you want truly unique tributes across the entire day
+    const usedTributeIds = new Set<string>();
     let eventAdded = false;
 
     for (const template of shuffledTemplates) {
       const roles: Record<string, Tribute> = {};
-      const eventPool = shuffleArray(alive);
+      // FIX #3: filter out already-used tributes before picking
+      const eventPool = shuffleArray(alive.filter((t) => !usedTributeIds.has(t.id)));
 
       if (template.roles) {
-        if (eventPool.length < template.roles.length) {
-          continue; // Not enough tributes to fill all roles
-        }
+        if (eventPool.length < template.roles.length) continue;
         for (const role of template.roles) {
           const tribute = eventPool.shift();
           if (!tribute) break;
           roles[role] = tribute;
         }
-        if (Object.keys(roles).length < template.roles.length) {
-          continue; // skip if not all roles could be filled
-        }
+        if (Object.keys(roles).length < template.roles.length) continue;
       }
 
       const finalRoles = maybeSwapRoles(roles, 0.1);
 
-      if (template.conditions && !template.conditions(dbCopy, finalRoles)) {
-        continue;
-      }
-
-      if (template.effects) {
-        template.effects(dbCopy, finalRoles);
-      }
-
-      const description = template.text;
+      if (template.conditions && !template.conditions(db, finalRoles)) continue;
 
       events.push({
         id: template.id,
         templateId: template.id,
-        description,
+        description: template.text,
         roles: Object.fromEntries(
           Object.entries(finalRoles).map(([k, v]) => [k, v.id])
         ),
-        day: 0, // Placeholder, can be updated to reflect the real day number if needed
+        day: 0, // placeholder, assigned properly in simulateGame
       });
 
+      // FIX #3: mark all roles in this event as used
+      for (const tribute of Object.values(finalRoles)) {
+        usedTributeIds.add(tribute.id);
+      }
+
       eventAdded = true;
-      break; // Move to next iteration after adding an event
+      break;
     }
 
-    if (!eventAdded) {
-      // No valid event found this iteration, skip
-      continue;
-    }
+    if (!eventAdded) continue;
   }
 
   return events;
@@ -131,69 +196,27 @@ export function simulateDay(db: HngrDB): Event[] {
 
 export function simulateGame(
   db: HngrDB,
-  maxDays?: number
+  maxDays?: number,
+  depotEventsOverride?: Event[]
 ): Record<number, Event[]> {
   const allDays: Record<number, Event[]> = {};
-  const dbCopy = cloneDb(db);
+  const dbCopy = normalizeDatabase(cloneDb(db));
   let day = 1;
 
   const totalDays = maxDays !== undefined ? maxDays : Infinity;
+  const depotEvents = depotEventsOverride ?? applyDepotStart(dbCopy);
 
   while (getAliveTributes(dbCopy).length > 1 && day <= totalDays) {
-    const events = simulateDay(dbCopy);
+    const regularEvents = simulateDay(dbCopy);
+    const events = day === 1 ? [...depotEvents, ...regularEvents] : regularEvents;
 
-    // Apply event effects to dbCopy for each event
-    for (const event of events) {
-      const template = templates.find((t) => t.id === event.templateId);
-      if (!template) continue;
-
-      const roles: Record<string, Tribute> = {};
-      for (const [role, tributeId] of Object.entries(event.roles)) {
-        const tribute = dbCopy.tributes[tributeId];
-        if (tribute) {
-          roles[role] = tribute;
-        }
-      }
-
-      if (template.effects) {
-        const aliveBefore = getAliveTributes(dbCopy).length;
-        const dbBeforeEffect = cloneDb(dbCopy);
-        template.effects(dbCopy, roles);
-        const aliveAfter = getAliveTributes(dbCopy).length;
-        if (aliveAfter === 0 && aliveBefore > 0) {
-          Object.assign(dbCopy, dbBeforeEffect);
-          // Skip applying this event's effects to avoid killing everyone
-          continue;
-        }
-      }
-    }
-
-    // Assign the correct day number to each event
     for (const event of events) {
       event.day = day;
     }
 
-    allDays[day] = events;
-    day++;
-  }
-
-  while (getAliveTributes(dbCopy).length > 1) {
-    const lethalTemplates = templates.filter(
-      (t) => t.type === "kill" || t.type === "kill2" || t.type === "combat"
-    );
-    const originalTemplates = templates.slice();
-
-    (templates as any).length = 0;
-    lethalTemplates.forEach((t) => (templates as any).push(t));
-
-    const events = simulateDay(dbCopy);
-
-    (templates as any).length = 0;
-    originalTemplates.forEach((t) => (templates as any).push(t));
-
     for (const event of events) {
       const template = templates.find((t) => t.id === event.templateId);
-      if (!template) continue;
+      if (!template || !template.effects) continue;
 
       const roles: Record<string, Tribute> = {};
       for (const [role, tributeId] of Object.entries(event.roles)) {
@@ -201,29 +224,64 @@ export function simulateGame(
         if (tribute) roles[role] = tribute;
       }
 
-      if (template.effects) {
-        const aliveBefore = getAliveTributes(dbCopy).length;
-        const dbBeforeEffect = cloneDb(dbCopy);
-        template.effects(dbCopy, roles);
-
-        const aliveAfter = getAliveTributes(dbCopy).length;
-        if (aliveAfter === 0 && aliveBefore > 0) {
-          Object.assign(dbCopy, dbBeforeEffect);
-          continue;
-        }
+      const aliveBefore = getAliveTributes(dbCopy).length;
+      const dbBeforeEffect = cloneDb(dbCopy);
+      template.effects(dbCopy, roles);
+      const aliveAfter = getAliveTributes(dbCopy).length;
+      if (aliveAfter === 0 && aliveBefore > 0) {
+        Object.assign(dbCopy, dbBeforeEffect);
       }
-    }
-
-    for (const event of events) {
-      event.day = day;
     }
 
     allDays[day] = events;
     day++;
   }
 
+  // FIX #2: tiebreaker only runs when no maxDays cap was provided
+  // previously this would always run regardless, ignoring the cap entirely
+  if (maxDays === undefined) {
+    while (getAliveTributes(dbCopy).length > 1) {
+      const lethalTemplates = templates.filter(
+        (t) => t.type === "kill" || t.type === "kill2" || t.type === "combat"
+      );
+      const events = simulateDay(dbCopy, lethalTemplates);
+
+      for (const event of events) {
+        const template = templates.find((t) => t.id === event.templateId);
+        if (!template) continue;
+
+        const roles: Record<string, Tribute> = {};
+        for (const [role, tributeId] of Object.entries(event.roles)) {
+          const tribute = dbCopy.tributes[tributeId];
+          if (tribute) roles[role] = tribute;
+        }
+
+        if (template.effects) {
+          const aliveBefore = getAliveTributes(dbCopy).length;
+          const dbBeforeEffect = cloneDb(dbCopy);
+          template.effects(dbCopy, roles);
+
+          const aliveAfter = getAliveTributes(dbCopy).length;
+          if (aliveAfter === 0 && aliveBefore > 0) {
+            Object.assign(dbCopy, dbBeforeEffect);
+            continue;
+          }
+        }
+      }
+
+      for (const event of events) {
+        event.day = day;
+      }
+
+      allDays[day] = events;
+      day++;
+    }
+  }
+
   const aliveAtEnd = getAliveTributes(dbCopy);
   const winner = aliveAtEnd[0];
+
+  if (!winner) return allDays;
 
   allDays[day] = [
     {
@@ -246,27 +304,27 @@ export function loadGame(db: HngrDB | null | undefined) {
 
   // server-side: skip localStorage usage
   if (typeof window === "undefined") {
-    return db.events ?? {};
+    return normalizeDatabase(db).events ?? {};
   }
 
   try {
     const savedDbString = localStorage.getItem("hngrDb");
     if (savedDbString) {
       const savedDb = JSON.parse(savedDbString) as HngrDB;
-      return savedDb.events ?? {};
+      return normalizeDatabase(savedDb).events ?? {};
     }
   } catch (e) {
     console.error("loadGame: failed to parse saved data", e);
   }
 
-  if (!db.events || Object.keys(db.events).length === 0) {
-    db.events = simulateGame(db);
-    try {
-      localStorage.setItem("hngrDb", JSON.stringify(db));
-    } catch (e) {
-      console.warn("loadGame: could not save hngrDb", e);
-    }
+  // FIX #4: always resimulate from scratch if no localStorage save exists
+  // previously stale db.events would be silently returned as-is
+  const normalized = normalizeDatabase(db);
+  normalized.events = simulateGame(normalized);
+  try {
+    localStorage.setItem("hngrDb", JSON.stringify(normalized));
+  } catch (e) {
+    console.warn("loadGame: could not save hngrDb", e);
   }
-
-  return db.events ?? {};
+  return normalized.events ?? {};
 }

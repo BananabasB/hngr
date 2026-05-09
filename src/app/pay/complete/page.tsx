@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Check, X } from 'lucide-react';
 import { updatePlusMembership } from '@/lib/supabase/services/users';
+import { isHngrPlusEnabled } from '@/lib/plus';
 
 const Complete = () => {
   const [status, setStatus] = useState<string | null>(null);
@@ -25,8 +26,17 @@ const Complete = () => {
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
+    if (!isHngrPlusEnabled()) {
+      setStatus('complete');
+      setPaymentIntentStatus('succeeded');
+      setPaymentStatus('paid');
+      setText('HNGR+ is free in this beta');
+      setLoading(false);
+      return;
+    }
+
     if (!sessionId) {
-      setError('Session ID is missing');
+      setError('Payment session is missing');
       setLoading(false);
       return;
     }
@@ -126,9 +136,11 @@ const Complete = () => {
               View details
             </a>
           </Button>
-          <Button asChild variant="link">
-            <Link href="/pay/checkout">Test another payment</Link>
-          </Button>
+          {isHngrPlusEnabled() && (
+            <Button asChild variant="link">
+              <Link href="/pay/checkout">Test another payment</Link>
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>

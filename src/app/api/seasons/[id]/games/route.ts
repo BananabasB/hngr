@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAuthenticatedSupabaseClient, getAuthenticatedUser } from '@/lib/supabase/server';
-import { SeasonService } from '@/lib/supabase/services/seasons';
+import { db } from '@/db';
+import { games, seasons } from '@/db/schema';
+import { asc, desc, eq } from 'drizzle-orm';
+import { getRequestUserId } from '@/lib/drizzle/server';
+import { serializeGame } from '@/lib/drizzle/serializers';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    
-    if (!user) {
+    const { id } = await params;
+    const userId = await getRequestUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const games = await SeasonService.getSeasonGames(params.id);
-    return NextResponse.json(games);
+    const season = await db.select().from(seasons).where(eq(seasons.id, id)).limit(1);
+    if (!season[0]) {
+      return NextResponse.json({ error: 'Season not found' }, { status: 404 });
+    }
+    if (season[0].ownerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const seasonGames = await db
+      .select()
+      .from(games)
+      .where(eq(games.seasonId, id))
+      .orderBy(asc(games.createdAt));
+
+    return NextResponse.json(seasonGames.map(serializeGame));
   } catch (error) {
     console.error('Error fetching season games:', error);
     return NextResponse.json(
@@ -26,16 +42,15 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthenticatedUser();
-    
-    if (!user) {
+    const { id } = await params;
+    const userId = await getRequestUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = await createAuthenticatedSupabaseClient();
     const body = await request.json();
     const { name, tribute_data, game_number, is_public } = body;
 
@@ -46,22 +61,37 @@ export async function POST(
       );
     }
 
-    // Create game with season_id
-    const { data, error } = await supabase
-      .from('games')
-      .insert([{
+    const season = await db.select().from(seasons).where(eq(seasons.id, id)).limit(1);
+    if (!season[0]) {
+      return NextResponse.json({ error: 'Season not found' }, { status: 404 });
+    }
+    if (season[0].ownerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const existingGames = await db
+      .select({ gameNumber: games.gameNumber })
+      .from(games)
+      .where(eq(games.seasonId, id))
+      .orderBy(desc(games.gameNumber))
+      .limit(1);
+
+    const nextGameNumber = game_number || (existingGames[0]?.gameNumber ?? 0) + 1;
+
+    const created = await db
+      .insert(games)
+      .values({
         name: name.trim(),
-        season_id: params.id,
-        tribute_data,
-        game_number: game_number || 1,
-        is_public: is_public || false,
-      }])
-      .select()
-      .single();
+        seasonId: id,
+        ownerId: userId,
+        tributeData: tribute_data,
+        gameNumber: nextGameNumber,
+        isCurrent: false,
+        isPublic: is_public || false,
+      })
+      .returning();
 
-    if (error) throw error;
-
-    return NextResponse.json(data);
+    return NextResponse.json(serializeGame(created[0]));
   } catch (error) {
     console.error('Error creating season game:', error);
     return NextResponse.json(
