@@ -289,6 +289,10 @@ span[data-error-code="form_identifier_not_found"] {
     corner-shape: squircle;
   }
 
+  .corner-round {
+    corner-shape: round !important;
+  }
+
   .rounded-full {
     corner-shape: round !important;
   }

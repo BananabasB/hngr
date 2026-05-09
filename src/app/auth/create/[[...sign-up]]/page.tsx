@@ -216,14 +216,14 @@ export default function SignUpPage() {
               </span>
             </Button>
             <Button
-              className={`w-full rounded-lg bg-brand-line-bg text-white pl-1 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active ${roboto.className} font-medium`}
+              className={`font-brand-line w-full corner-round rounded-lg bg-brand-line-bg text-white  p-0 pl-1.5 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active font-semibold`}
               onClick={handleLineClick}
             >
-              <span className="flex justify-items-start items-center border-r border-brand-line-line pr-2 h-full">
+              <span className="flex justify-items-start items-center border-r border-brand-line-line pr-1.5 h-full">
                 <SiLine className="text-white size-5" />
               </span>
-              <span className="flex-1 text-center flex items-center justify-center gap-2">
-                Continue with LINE
+              <span className="flex-1 text-center flex items-center justify-center gap-2 text-[14px] tracking-wide">
+                Log in with LINE
               </span>
             </Button>
             <FieldSeparator>or</FieldSeparator>
