@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { SignInButton } from "@clerk/nextjs";
+import { SignInButton, Show } from "@clerk/nextjs";
 import { LoadingState } from "@/components/ui/loading-state";
 
 const gupter = Gupter({ weight: "400", subsets: ["latin"] });
