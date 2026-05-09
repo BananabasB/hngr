@@ -216,7 +216,7 @@ export default function SignUpPage() {
               </span>
             </Button>
             <Button
-              className={`font-brand-line w-full corner-round rounded-lg bg-brand-line-bg text-white  p-0 pl-1.5 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active font-semibold`}
+              className={`font-brand-line w-full corner-round bg-brand-line-bg text-white  p-0 pl-1.5 hover:bg-brand-line-bg-hover active:bg-brand-line-bg-active font-semibold`}
               onClick={handleLineClick}
             >
               <span className="flex justify-items-start items-center border-r border-brand-line-line pr-1.5 h-full">
